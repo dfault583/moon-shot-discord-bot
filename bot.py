@@ -40,8 +40,8 @@ def make_chart(df, symbol, timeframe):
                         mpf.plot(df, type='candle', style=s, volume=True, addplot=plots, savefig=dict(fname=buf, dpi=150, bbox_inches='tight'), title=f'{symbol} - {timeframe}')
                         buf.seek(0)
                         return buf
-    except:
-        return None
+        except:
+            return None
 
 @bot.command(name='c')
 async def chart_default(ctx, symbol: str = 'AAPL'):
