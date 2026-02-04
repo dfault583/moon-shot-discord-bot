@@ -1,5 +1,5 @@
 discord.py>=2.0.0
-yfinance
+alpaca-py
 mplfinance
 pandas
 matplotlib
