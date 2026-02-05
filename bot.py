@@ -23,7 +23,7 @@ def calculate_vwap(df):
           return (tp * df['volume']).cumsum() / df['volume'].cumsum()
 
 def make_chart(df, symbol, timeframe):
-          try:
+    try:
                         df['SMA20'] = df['close'].rolling(window=20).mean()
                         df['SMA50'] = df['close'].rolling(window=50).mean()
                         df['SMA200'] = df['close'].rolling(window=200).mean()
@@ -40,8 +40,8 @@ def make_chart(df, symbol, timeframe):
                         mpf.plot(df, type='candle', style=s, volume=True, addplot=plots, savefig=dict(fname=buf, dpi=150, bbox_inches='tight'), title=f'{symbol} - {timeframe}')
                         buf.seek(0)
                         return buf
-        except:
-            return None
+    except:
+        return None
 
 @bot.command(name='c')
 async def chart_default(ctx, symbol: str = 'AAPL'):
