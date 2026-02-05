@@ -40,62 +40,72 @@ def make_chart(df, symbol, timeframe):
         mpf.plot(df, type='candle', style=s, volume=True, addplot=plots, savefig=dict(fname=buf, dpi=150, bbox_inches='tight'), title=f'{symbol} - {timeframe}')
         buf.seek(0)
         return buf
-    except:
+    except Exception as e:
+        print(f"Chart error: {e}")
         return None
 
 @bot.command(name='c')
 async def chart_default(ctx, symbol: str = 'AAPL'):
-    await ctx.send(f"Generating weekly chart for {symbol}...")
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=365)
-    request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Week, start=start_date, end=end_date)
-    bars = stock_client.get_stock_bars(request)
-    df = bars.df
-    if symbol.upper() in df.index.get_level_values('symbol'):
-        df = df.xs(symbol.upper(), level='symbol')
-    df.index = df.index.tz_localize(None)
-    df = df.rename(columns={'open': 'open', 'high': 'high', 'low': 'low', 'close': 'close', 'volume': 'volume'})
-    buf = make_chart(df, symbol.upper(), '1wk')
-    if buf is None:
-        await ctx.send(f"No data for {symbol}.")
-        return
-    await ctx.send(file=discord.File(buf, filename=f'{symbol}_weekly.png'))
+    try:
+        await ctx.send(f"Generating weekly chart for {symbol}...")
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=365)
+        request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Week, start=start_date, end=end_date, feed='iex')
+        bars = stock_client.get_stock_bars(request)
+        df = bars.df
+        if symbol.upper() in df.index.get_level_values('symbol'):
+            df = df.xs(symbol.upper(), level='symbol')
+        df.index = df.index.tz_localize(None)
+        df = df.rename(columns={'open': 'open', 'high': 'high', 'low': 'low', 'close': 'close', 'volume': 'volume'})
+        buf = make_chart(df, symbol.upper(), '1wk')
+        if buf is None:
+            await ctx.send(f"No data for {symbol}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{symbol}_weekly.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
 
 @bot.command(name='cd')
 async def chart_daily(ctx, symbol: str = 'AAPL'):
-    await ctx.send(f"Generating daily chart for {symbol}...")
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=365)
-    request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Day, start=start_date, end=end_date)
-    bars = stock_client.get_stock_bars(request)
-    df = bars.df
-    if symbol.upper() in df.index.get_level_values('symbol'):
-        df = df.xs(symbol.upper(), level='symbol')
-    df.index = df.index.tz_localize(None)
-    df = df.rename(columns={'open': 'open', 'high': 'high', 'low': 'low', 'close': 'close', 'volume': 'volume'})
-    buf = make_chart(df, symbol.upper(), '1d')
-    if buf is None:
-        await ctx.send(f"No data for {symbol}.")
-        return
-    await ctx.send(file=discord.File(buf, filename=f'{symbol}_daily.png'))
+    try:
+        await ctx.send(f"Generating daily chart for {symbol}...")
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=365)
+        request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Day, start=start_date, end=end_date, feed='iex')
+        bars = stock_client.get_stock_bars(request)
+        df = bars.df
+        if symbol.upper() in df.index.get_level_values('symbol'):
+            df = df.xs(symbol.upper(), level='symbol')
+        df.index = df.index.tz_localize(None)
+        df = df.rename(columns={'open': 'open', 'high': 'high', 'low': 'low', 'close': 'close', 'volume': 'volume'})
+        buf = make_chart(df, symbol.upper(), '1d')
+        if buf is None:
+            await ctx.send(f"No data for {symbol}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{symbol}_daily.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
 
 @bot.command(name='ch')
 async def chart_hourly(ctx, symbol: str = 'AAPL'):
-    await ctx.send(f"Generating hourly chart for {symbol}...")
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=30)
-    request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Hour, start=start_date, end=end_date)
-    bars = stock_client.get_stock_bars(request)
-    df = bars.df
-    if symbol.upper() in df.index.get_level_values('symbol'):
-        df = df.xs(symbol.upper(), level='symbol')
-    df.index = df.index.tz_localize(None)
-    df = df.rename(columns={'open': 'open', 'high': 'high', 'low': 'low', 'close': 'close', 'volume': 'volume'})
-    buf = make_chart(df, symbol.upper(), '1h')
-    if buf is None:
-        await ctx.send(f"No data for {symbol}.")
-        return
-    await ctx.send(file=discord.File(buf, filename=f'{symbol}_hourly.png'))
+    try:
+        await ctx.send(f"Generating hourly chart for {symbol}...")
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=30)
+        request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Hour, start=start_date, end=end_date, feed='iex')
+        bars = stock_client.get_stock_bars(request)
+        df = bars.df
+        if symbol.upper() in df.index.get_level_values('symbol'):
+            df = df.xs(symbol.upper(), level='symbol')
+        df.index = df.index.tz_localize(None)
+        df = df.rename(columns={'open': 'open', 'high': 'high', 'low': 'low', 'close': 'close', 'volume': 'volume'})
+        buf = make_chart(df, symbol.upper(), '1h')
+        if buf is None:
+            await ctx.send(f"No data for {symbol}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{symbol}_hourly.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
 
 @bot.event
 async def on_ready():
