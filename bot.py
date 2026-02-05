@@ -107,6 +107,44 @@ async def chart_hourly(ctx, symbol: str = 'AAPL'):
     except Exception as e:
         await ctx.send(f"Error: {e}")
 
+async def _chart_minute(ctx, symbol, minutes, days):
+    try:
+        await ctx.send(f"Generating {minutes}min chart for {symbol}...")
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Minute, start=start_date, end=end_date, feed='iex')
+        bars = stock_client.get_stock_bars(request)
+        df = bars.df
+        if symbol.upper() in df.index.get_level_values('symbol'):
+            df = df.xs(symbol.upper(), level='symbol')
+        if minutes > 1:
+            df = df.resample(f'{minutes}min').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum'}).dropna()
+        df.index = df.index.tz_localize(None)
+        df = df.rename(columns={'open': 'open', 'high': 'high', 'low': 'low', 'close': 'close', 'volume': 'volume'})
+        buf = make_chart(df, symbol.upper(), f'{minutes}min')
+        if buf is None:
+            await ctx.send(f"No data for {symbol}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{symbol}_{minutes}min.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
+
+@bot.command(name='cm1')
+async def chart_1min(ctx, symbol: str = 'AAPL'):
+    await _chart_minute(ctx, symbol, 1, 2)
+
+@bot.command(name='cm5')
+async def chart_5min(ctx, symbol: str = 'AAPL'):
+    await _chart_minute(ctx, symbol, 5, 5)
+
+@bot.command(name='cm15')
+async def chart_15min(ctx, symbol: str = 'AAPL'):
+    await _chart_minute(ctx, symbol, 15, 10)
+
+@bot.command(name='cm30')
+async def chart_30min(ctx, symbol: str = 'AAPL'):
+    await _chart_minute(ctx, symbol, 30, 15)
+
 @bot.event
 async def on_ready():
     print(f'{bot.user} has connected to Discord!')
