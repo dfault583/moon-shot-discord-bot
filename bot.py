@@ -7,6 +7,7 @@ import mplfinance as mpf
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
+from matplotlib.lines import Line2D
 import io
 import os
 import numpy as np
@@ -37,26 +38,37 @@ def calculate_vwap(df):
     tp = (df['high'] + df['low'] + df['close']) / 3
     return (tp * df['volume']).cumsum() / df['volume'].cumsum()
 
-def make_chart(df, symbol, timeframe):
+def make_chart(df, symbol, timeframe, display_count=None):
     try:
         if len(df) < 2:
             print(f"Not enough data for {symbol} {timeframe}: {len(df)} rows")
             return None
 
-        plots = []
-
-        if len(df) >= 20:
-            df['SMA20'] = df['close'].rolling(window=20).mean()
-            plots.append(mpf.make_addplot(df['SMA20'], color='#2962ff', width=1.2))
-        if len(df) >= 50:
-            df['SMA50'] = df['close'].rolling(window=50).mean()
-            plots.append(mpf.make_addplot(df['SMA50'], color='#ff6d00', width=1.2))
-        if len(df) >= 200:
-            df['SMA200'] = df['close'].rolling(window=200).mean()
-            plots.append(mpf.make_addplot(df['SMA200'], color='#ab47bc', width=1.5))
-
+        # Calculate indicators on FULL data first
+        df['SMA20'] = df['close'].rolling(window=20).mean()
+        df['SMA50'] = df['close'].rolling(window=50).mean()
+        df['SMA200'] = df['close'].rolling(window=200).mean()
         df['VWAP'] = calculate_vwap(df)
-        plots.append(mpf.make_addplot(df['VWAP'], color='#ffeb3b', width=1, linestyle='--'))
+
+        # Trim to display window AFTER calculating indicators
+        if display_count and len(df) > display_count:
+            df = df.iloc[-display_count:]
+
+        plots = []
+        legend_items = []
+
+        if df['SMA20'].notna().any():
+            plots.append(mpf.make_addplot(df['SMA20'], color='#2962ff', width=1.2))
+            legend_items.append(('SMA 20', '#2962ff', '-'))
+        if df['SMA50'].notna().any():
+            plots.append(mpf.make_addplot(df['SMA50'], color='#ff6d00', width=1.2))
+            legend_items.append(('SMA 50', '#ff6d00', '-'))
+        if df['SMA200'].notna().any():
+            plots.append(mpf.make_addplot(df['SMA200'], color='#ab47bc', width=1.5))
+            legend_items.append(('SMA 200', '#ab47bc', '-'))
+        if df['VWAP'].notna().any():
+            plots.append(mpf.make_addplot(df['VWAP'], color='#ffeb3b', width=1, linestyle='--'))
+            legend_items.append(('VWAP', '#ffeb3b', '--'))
 
         mc = mpf.make_marketcolors(
             up=TV_CANDLE_UP, down=TV_CANDLE_DOWN,
@@ -104,6 +116,24 @@ def make_chart(df, symbol, timeframe):
             panel_ratios=(3, 1)
         )
         fig.suptitle(title, color=TV_TEXT, fontsize=13, fontweight='bold', x=0.08, ha='left')
+
+        # Add indicator legend
+        if legend_items:
+            handles = []
+            for name, color, ls in legend_items:
+                handles.append(Line2D([0], [0], color=color, linewidth=1.5, linestyle=ls, label=name))
+            axes[0].legend(
+                handles=handles,
+                loc='upper left',
+                fontsize=8,
+                facecolor=TV_BG,
+                edgecolor=TV_BORDER,
+                labelcolor=TV_TEXT,
+                framealpha=0.8,
+                borderpad=0.4,
+                handlelength=1.5
+            )
+
         for ax in axes:
             ax.set_facecolor(TV_BG)
             ax.tick_params(colors=TV_TEXT, labelsize=8)
@@ -129,13 +159,14 @@ async def help_command(ctx):
     embed.add_field(
         name='Charts',
         value=(
-            '**!cw SYMBOL** — Weekly chart (1 year)\n'
-            '**!cd SYMBOL** — Daily chart (3 months)\n'
-            '**!ch SYMBOL** — Hourly chart (5 days)\n'
-            '**!cm1 SYMBOL** — 1 min chart (today)\n'
-            '**!cm5 SYMBOL** — 5 min chart (today)\n'
-            '**!cm15 SYMBOL** — 15 min chart (today)\n'
-            '**!cm30 SYMBOL** — 30 min chart (today)'
+            '**!cm SYMBOL** \u2014 Monthly chart (2 years)\n'
+            '**!cw SYMBOL** \u2014 Weekly chart (1 year)\n'
+            '**!cd SYMBOL** \u2014 Daily chart (3 months)\n'
+            '**!ch SYMBOL** \u2014 Hourly chart (5 days)\n'
+            '**!cm1 SYMBOL** \u2014 1 min chart (today)\n'
+            '**!cm5 SYMBOL** \u2014 5 min chart (today)\n'
+            '**!cm15 SYMBOL** \u2014 15 min chart (today)\n'
+            '**!cm30 SYMBOL** \u2014 30 min chart (today)'
         ),
         inline=False
     )
@@ -147,19 +178,39 @@ async def help_command(ctx):
     embed.set_footer(text='Default symbol: AAPL')
     await ctx.send(embed=embed)
 
+@bot.command(name='cm')
+async def chart_monthly(ctx, symbol: str = 'AAPL'):
+    try:
+        await ctx.send(f"Generating monthly chart for {symbol.upper()}...")
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=730)
+        request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Month, start=start_date, end=end_date, feed='iex')
+        bars = stock_client.get_stock_bars(request)
+        df = bars.df
+        if symbol.upper() in df.index.get_level_values('symbol'):
+            df = df.xs(symbol.upper(), level='symbol')
+        df.index = df.index.tz_localize(None)
+        buf = make_chart(df, symbol.upper(), '1M')
+        if buf is None:
+            await ctx.send(f"No data for {symbol.upper()}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{symbol}_monthly.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
+
 @bot.command(name='cw')
 async def chart_weekly(ctx, symbol: str = 'AAPL'):
     try:
         await ctx.send(f"Generating weekly chart for {symbol.upper()}...")
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=365)
+        start_date = end_date - timedelta(days=365*2)
         request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Week, start=start_date, end=end_date, feed='iex')
         bars = stock_client.get_stock_bars(request)
         df = bars.df
         if symbol.upper() in df.index.get_level_values('symbol'):
             df = df.xs(symbol.upper(), level='symbol')
         df.index = df.index.tz_localize(None)
-        buf = make_chart(df, symbol.upper(), '1W')
+        buf = make_chart(df, symbol.upper(), '1W', display_count=52)
         if buf is None:
             await ctx.send(f"No data for {symbol.upper()}.")
             return
@@ -172,14 +223,14 @@ async def chart_daily(ctx, symbol: str = 'AAPL'):
     try:
         await ctx.send(f"Generating daily chart for {symbol.upper()}...")
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=90)
+        start_date = end_date - timedelta(days=365)
         request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Day, start=start_date, end=end_date, feed='iex')
         bars = stock_client.get_stock_bars(request)
         df = bars.df
         if symbol.upper() in df.index.get_level_values('symbol'):
             df = df.xs(symbol.upper(), level='symbol')
         df.index = df.index.tz_localize(None)
-        buf = make_chart(df, symbol.upper(), '1D')
+        buf = make_chart(df, symbol.upper(), '1D', display_count=65)
         if buf is None:
             await ctx.send(f"No data for {symbol.upper()}.")
             return
@@ -192,14 +243,14 @@ async def chart_hourly(ctx, symbol: str = 'AAPL'):
     try:
         await ctx.send(f"Generating hourly chart for {symbol.upper()}...")
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=5)
+        start_date = end_date - timedelta(days=30)
         request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Hour, start=start_date, end=end_date, feed='iex')
         bars = stock_client.get_stock_bars(request)
         df = bars.df
         if symbol.upper() in df.index.get_level_values('symbol'):
             df = df.xs(symbol.upper(), level='symbol')
         df.index = df.index.tz_localize(None)
-        buf = make_chart(df, symbol.upper(), '1H')
+        buf = make_chart(df, symbol.upper(), '1H', display_count=40)
         if buf is None:
             await ctx.send(f"No data for {symbol.upper()}.")
             return
