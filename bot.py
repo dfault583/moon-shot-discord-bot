@@ -16,6 +16,7 @@ import pytz
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
+bot.remove_command('help')
 
 # Initialize Alpaca client
 ALPACA_API_KEY = os.getenv('APCA_API_KEY_ID')
@@ -44,7 +45,6 @@ def make_chart(df, symbol, timeframe):
 
         plots = []
 
-        # Only add SMAs if we have enough data
         if len(df) >= 20:
             df['SMA20'] = df['close'].rolling(window=20).mean()
             plots.append(mpf.make_addplot(df['SMA20'], color='#2962ff', width=1.2))
@@ -119,8 +119,36 @@ def make_chart(df, symbol, timeframe):
         traceback.print_exc()
         return None
 
-@bot.command(name='c')
-async def chart_default(ctx, symbol: str = 'AAPL'):
+@bot.command(name='help')
+async def help_command(ctx):
+    embed = discord.Embed(
+        title='Moon Shot Commands',
+        description='Stock charting bot powered by Alpaca',
+        color=0x26a69a
+    )
+    embed.add_field(
+        name='Charts',
+        value=(
+            '**!cw SYMBOL** — Weekly chart (1 year)\n'
+            '**!cd SYMBOL** — Daily chart (3 months)\n'
+            '**!ch SYMBOL** — Hourly chart (5 days)\n'
+            '**!cm1 SYMBOL** — 1 min chart (today)\n'
+            '**!cm5 SYMBOL** — 5 min chart (today)\n'
+            '**!cm15 SYMBOL** — 15 min chart (today)\n'
+            '**!cm30 SYMBOL** — 30 min chart (today)'
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name='Overlays',
+        value='SMA 20 / 50 / 200 + VWAP',
+        inline=False
+    )
+    embed.set_footer(text='Default symbol: AAPL')
+    await ctx.send(embed=embed)
+
+@bot.command(name='cw')
+async def chart_weekly(ctx, symbol: str = 'AAPL'):
     try:
         await ctx.send(f"Generating weekly chart for {symbol.upper()}...")
         end_date = datetime.now()
@@ -182,7 +210,6 @@ async def chart_hourly(ctx, symbol: str = 'AAPL'):
 async def _chart_minute(ctx, symbol, minutes):
     try:
         await ctx.send(f"Generating {minutes}min chart for {symbol.upper()}...")
-        # Get today's data only
         et = pytz.timezone('US/Eastern')
         now_et = datetime.now(et)
         today_start = now_et.replace(hour=4, minute=0, second=0, microsecond=0)
