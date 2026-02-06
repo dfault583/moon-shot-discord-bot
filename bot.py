@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib.lines import Line2D
+from matplotlib.patches import FancyBboxPatch
+import matplotlib.gridspec as gridspec
 import yfinance as yf
 import io
 import os
@@ -313,6 +315,154 @@ def calculate_vwap(df):
     tp = (df['high'] + df['low'] + df['close']) / 3
     return (tp * df['volume']).cumsum() / df['volume'].cumsum()
 
+
+def calculate_true_range(df):
+    """Calculate True Range."""
+    tr = pd.DataFrame(index=df.index)
+    tr['hl'] = df['high'] - df['low']
+    tr['hc'] = (df['high'] - df['close'].shift(1)).abs()
+    tr['lc'] = (df['low'] - df['close'].shift(1)).abs()
+    return tr.max(axis=1)
+
+def calculate_rma(series, period):
+    """Wilder's smoothing (RMA)."""
+    return series.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
+
+def calculate_supertrend_fib(df, atr_period=10, mult1=1.0, mult2=2.0, mult3=3.0):
+    """Calculate Fibonacci SuperTrend with 3 bands."""
+    hl2 = (df['high'] + df['low']) / 2
+    tr = calculate_true_range(df)
+    atr = calculate_rma(tr, atr_period)
+    
+    results = {}
+    for label, mult in [('upper', mult3), ('mid', mult2), ('lower', mult1)]:
+        upper_band = hl2 + (mult * atr)
+        lower_band = hl2 - (mult * atr)
+        st = pd.Series(index=df.index, dtype='float64')
+        direction = pd.Series(0, index=df.index, dtype='int64')
+        
+        for i in range(1, len(df)):
+            if pd.isna(atr.iloc[i]):
+                continue
+            
+            # Band clamping
+            if lower_band.iloc[i] < lower_band.iloc[i-1] and df['close'].iloc[i-1] > lower_band.iloc[i-1]:
+                lower_band.iloc[i] = lower_band.iloc[i-1]
+            if upper_band.iloc[i] > upper_band.iloc[i-1] and df['close'].iloc[i-1] < upper_band.iloc[i-1]:
+                upper_band.iloc[i] = upper_band.iloc[i-1]
+            
+            prev_dir = direction.iloc[i-1]
+            if prev_dir <= 0:
+                if df['close'].iloc[i] > upper_band.iloc[i]:
+                    direction.iloc[i] = 1
+                else:
+                    direction.iloc[i] = -1
+            else:
+                if df['close'].iloc[i] < lower_band.iloc[i]:
+                    direction.iloc[i] = -1
+                else:
+                    direction.iloc[i] = 1
+            
+            st.iloc[i] = lower_band.iloc[i] if direction.iloc[i] == 1 else upper_band.iloc[i]
+        
+        results[f'st_{label}'] = st
+        results[f'dir_{label}'] = direction
+    
+    return results
+
+def calculate_squeeze(df, bb_period=20, bb_mult=2.0, kc_period=20, kc_mult=1.5):
+    """Detect Bollinger Band squeeze inside Keltner Channels."""
+    # Bollinger Bands
+    bb_mid = df['close'].rolling(bb_period).mean()
+    bb_std = df['close'].rolling(bb_period).std()
+    bb_upper = bb_mid + bb_mult * bb_std
+    bb_lower = bb_mid - bb_mult * bb_std
+    
+    # Keltner Channels
+    tr = calculate_true_range(df)
+    kc_atr = calculate_rma(tr, kc_period)
+    kc_mid = df['close'].rolling(kc_period).mean()
+    kc_upper = kc_mid + kc_mult * kc_atr
+    kc_lower = kc_mid - kc_mult * kc_atr
+    
+    # Squeeze is on when BB is inside KC
+    squeeze_on = (bb_lower > kc_lower) & (bb_upper < kc_upper)
+    
+    # Momentum (close position relative to midline of Donchian channel vs BB midline)
+    highest = df['high'].rolling(bb_period).max()
+    lowest = df['low'].rolling(bb_period).min()
+    m1 = (highest + lowest) / 2
+    momentum = df['close'] - (m1 + bb_mid) / 2
+    
+    return squeeze_on, momentum
+
+def calculate_rsi(df, period=14):
+    """Calculate RSI."""
+    delta = df['close'].diff()
+    gain = delta.where(delta > 0, 0.0)
+    loss = (-delta).where(delta < 0, 0.0)
+    avg_gain = calculate_rma(gain, period)
+    avg_loss = calculate_rma(loss, period)
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
+def detect_divergence(df, rsi, lookback=14):
+    """Detect RSI divergence vs price."""
+    divergence = pd.Series(0, index=df.index, dtype='int64')
+    for i in range(lookback, len(df)):
+        # Bearish divergence: price higher high, RSI lower high
+        price_window = df['close'].iloc[i-lookback:i+1]
+        rsi_window = rsi.iloc[i-lookback:i+1]
+        if (df['close'].iloc[i] > price_window.iloc[:-1].max() and 
+            rsi.iloc[i] < rsi_window.iloc[:-1].max()):
+            divergence.iloc[i] = -1
+        # Bullish divergence: price lower low, RSI higher low
+        elif (df['close'].iloc[i] < price_window.iloc[:-1].min() and 
+              rsi.iloc[i] > rsi_window.iloc[:-1].min()):
+            divergence.iloc[i] = 1
+    return divergence
+
+def calculate_b4_signals(df):
+    """Calculate all B4-style indicator components."""
+    # Fibonacci SuperTrend
+    st = calculate_supertrend_fib(df, atr_period=10, mult1=1.0, mult2=2.0, mult3=3.0)
+    
+    # Squeeze
+    squeeze_on, squeeze_momentum = calculate_squeeze(df)
+    
+    # RSI
+    rsi = calculate_rsi(df, period=14)
+    
+    # Divergence
+    divergence = detect_divergence(df, rsi)
+    
+    # Trend direction based on midline supertrend
+    trend_dir = st['dir_mid']
+    
+    # Buy/Sell signals: trend flip on mid supertrend confirmed by RSI
+    buy_signals = pd.Series(False, index=df.index)
+    sell_signals = pd.Series(False, index=df.index)
+    
+    for i in range(1, len(df)):
+        # Buy: direction flips to bullish
+        if trend_dir.iloc[i] == 1 and trend_dir.iloc[i-1] == -1:
+            if pd.notna(rsi.iloc[i]) and rsi.iloc[i] > 40:
+                buy_signals.iloc[i] = True
+        # Sell: direction flips to bearish
+        elif trend_dir.iloc[i] == -1 and trend_dir.iloc[i-1] == 1:
+            if pd.notna(rsi.iloc[i]) and rsi.iloc[i] < 60:
+                sell_signals.iloc[i] = True
+    
+    return {
+        'st_upper': st['st_upper'], 'st_mid': st['st_mid'], 'st_lower': st['st_lower'],
+        'dir_upper': st['dir_upper'], 'dir_mid': st['dir_mid'], 'dir_lower': st['dir_lower'],
+        'squeeze_on': squeeze_on, 'squeeze_momentum': squeeze_momentum,
+        'rsi': rsi, 'divergence': divergence,
+        'buy': buy_signals, 'sell': sell_signals,
+        'trend_dir': trend_dir,
+    }
+
 def make_chart(df, symbol, timeframe, display_count=None, source=None):
     try:
         if len(df) < 2:
@@ -324,27 +474,94 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
         df['SMA50'] = df['close'].rolling(window=50).mean()
         df['SMA200'] = df['close'].rolling(window=200).mean()
         df['VWAP'] = calculate_vwap(df)
+        
+        # Calculate B4-style indicators
+        b4 = calculate_b4_signals(df)
 
         # Trim to display window AFTER calculating indicators
         if display_count and len(df) > display_count:
             df = df.iloc[-display_count:]
+            for key in b4:
+                if isinstance(b4[key], pd.Series):
+                    b4[key] = b4[key].iloc[-display_count:]
 
+        # === Main chart addplots ===
         plots = []
         legend_items = []
 
         if df['SMA20'].notna().any():
-            plots.append(mpf.make_addplot(df['SMA20'], color='#2962ff', width=1.2))
+            plots.append(mpf.make_addplot(df['SMA20'], color='#2962ff', width=1.0, panel=0))
             legend_items.append(('SMA 20', '#2962ff', '-'))
         if df['SMA50'].notna().any():
-            plots.append(mpf.make_addplot(df['SMA50'], color='#ff6d00', width=1.2))
+            plots.append(mpf.make_addplot(df['SMA50'], color='#ff6d00', width=1.0, panel=0))
             legend_items.append(('SMA 50', '#ff6d00', '-'))
         if df['SMA200'].notna().any():
-            plots.append(mpf.make_addplot(df['SMA200'], color='#ab47bc', width=1.5))
+            plots.append(mpf.make_addplot(df['SMA200'], color='#ab47bc', width=1.2, panel=0))
             legend_items.append(('SMA 200', '#ab47bc', '-'))
         if df['VWAP'].notna().any():
-            plots.append(mpf.make_addplot(df['VWAP'], color='#ffeb3b', width=1, linestyle='--'))
+            plots.append(mpf.make_addplot(df['VWAP'], color='#ffeb3b', width=1, linestyle='--', panel=0))
             legend_items.append(('VWAP', '#ffeb3b', '--'))
 
+        # SuperTrend bands on main chart - color by direction
+        for band_key, dir_key, lbl, w in [('st_upper', 'dir_upper', 'ST Upper', 1.0),
+                                            ('st_mid', 'dir_mid', 'ST Mid', 1.5),
+                                            ('st_lower', 'dir_lower', 'ST Lower', 1.0)]:
+            st_line = b4[band_key].copy()
+            st_dir = b4[dir_key].copy()
+            st_bull = st_line.copy()
+            st_bear = st_line.copy()
+            st_bull[st_dir != 1] = np.nan
+            st_bear[st_dir != -1] = np.nan
+            if st_bull.notna().any():
+                plots.append(mpf.make_addplot(st_bull, color='#00e676', width=w, panel=0))
+            if st_bear.notna().any():
+                plots.append(mpf.make_addplot(st_bear, color='#ff1744', width=w, panel=0))
+
+        legend_items.append(('ST Bull', '#00e676', '-'))
+        legend_items.append(('ST Bear', '#ff1744', '-'))
+
+        # Buy/Sell markers on main chart
+        buy_markers = pd.Series(np.nan, index=df.index)
+        sell_markers = pd.Series(np.nan, index=df.index)
+        buy_mask = b4['buy']
+        sell_mask = b4['sell']
+        if buy_mask.any():
+            buy_markers[buy_mask] = df['low'][buy_mask] * 0.998
+            plots.append(mpf.make_addplot(buy_markers, type='scatter', marker='^', markersize=80, color='#00e676', panel=0))
+        if sell_mask.any():
+            sell_markers[sell_mask] = df['high'][sell_mask] * 1.002
+            plots.append(mpf.make_addplot(sell_markers, type='scatter', marker='v', markersize=80, color='#ff1744', panel=0))
+
+        # === B4 Indicator Panel (panel 2) - Squeeze Momentum ===
+        mom = b4['squeeze_momentum']
+        sq_on = b4['squeeze_on']
+        
+        # Color momentum bars: green if rising, red if falling
+        mom_colors = []
+        for i in range(len(mom)):
+            if pd.isna(mom.iloc[i]):
+                mom_colors.append('#333333')
+            elif i > 0 and mom.iloc[i] > mom.iloc[i-1]:
+                if mom.iloc[i] >= 0:
+                    mom_colors.append('#00e676')
+                else:
+                    mom_colors.append('#26a69a')
+            else:
+                if mom.iloc[i] <= 0:
+                    mom_colors.append('#ff1744')
+                else:
+                    mom_colors.append('#ef5350')
+        
+        mom_filled = mom.fillna(0)
+        plots.append(mpf.make_addplot(mom_filled, type='bar', color=mom_colors, panel=2, ylabel='B4'))
+
+        # Squeeze dots on zero line
+        squeeze_dots = pd.Series(0.0, index=df.index)
+        plots.append(mpf.make_addplot(squeeze_dots, type='scatter', marker='o', markersize=8,
+                                       color=['#ffeb3b' if sq else '#666666' for sq in sq_on],
+                                       panel=2))
+
+        # === Chart Style ===
         mc = mpf.make_marketcolors(
             up=TV_CANDLE_UP, down=TV_CANDLE_DOWN,
             edge={'up': TV_CANDLE_UP, 'down': TV_CANDLE_DOWN},
@@ -352,6 +569,7 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             volume={'up': TV_VOL_UP, 'down': TV_VOL_DOWN},
             ohlc={'up': TV_CANDLE_UP, 'down': TV_CANDLE_DOWN}
         )
+
         s = mpf.make_mpf_style(
             marketcolors=mc,
             facecolor=TV_BG,
@@ -378,20 +596,46 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
         pct_change = (change / prev_close) * 100
         sign = '+' if change >= 0 else ''
         src_tag = ' [YF]' if source == 'yfinance' else ''
-        title = f'{symbol} {timeframe} {last_close:.2f} {sign}{change:.2f} ({sign}{pct_change:.2f}%){src_tag}'
+        title = f'{symbol} {timeframe}  {last_close:.2f}  {sign}{change:.2f} ({sign}{pct_change:.2f}%){src_tag}'
 
         buf = io.BytesIO()
+
         fig, axes = mpf.plot(
             df, type='candle', style=s, volume=True,
-            addplot=plots,
-            figsize=(12, 7),
-            tight_layout=True,
+            addplot=plots if plots else None,
+            figsize=(14, 9), tight_layout=False,
             scale_padding={'left': 0.05, 'top': 0.6, 'right': 1.0, 'bottom': 0.5},
             returnfig=True,
             volume_panel=1,
-            panel_ratios=(3, 1)
+            panel_ratios=(4, 1, 2)
         )
+
         fig.suptitle(title, color=TV_TEXT, fontsize=13, fontweight='bold', x=0.08, ha='left')
+
+        # B4 status labels
+        trend = b4['trend_dir'].iloc[-1]
+        trend_label = 'Bullish' if trend == 1 else 'Bearish'
+        trend_color = '#00e676' if trend == 1 else '#ff1744'
+        
+        div_val = b4['divergence'].iloc[-1] if b4['divergence'].notna().any() else 0
+        div_label = 'Bullish' if div_val == 1 else ('Bearish' if div_val == -1 else 'None')
+        div_color = '#00e676' if div_val == 1 else ('#ff1744' if div_val == -1 else '#888888')
+        
+        sq_val = b4['squeeze_on'].iloc[-1] if b4['squeeze_on'].notna().any() else False
+        sq_label = 'Yes' if sq_val else 'No'
+        sq_color = '#ffeb3b' if sq_val else '#888888'
+
+        # Add status text to the B4 panel
+        b4_ax = axes[4] if len(axes) > 4 else axes[-1]
+        b4_ax.text(0.98, 0.92, f'Trend: {trend_label}', transform=b4_ax.transAxes,
+                   fontsize=7, color=trend_color, ha='right', va='top',
+                   bbox=dict(boxstyle='round,pad=0.2', facecolor=TV_BG, edgecolor=TV_BORDER, alpha=0.9))
+        b4_ax.text(0.98, 0.72, f'Divergence: {div_label}', transform=b4_ax.transAxes,
+                   fontsize=7, color=div_color, ha='right', va='top',
+                   bbox=dict(boxstyle='round,pad=0.2', facecolor=TV_BG, edgecolor=TV_BORDER, alpha=0.9))
+        b4_ax.text(0.98, 0.52, f'Squeeze: {sq_label}', transform=b4_ax.transAxes,
+                   fontsize=7, color=sq_color, ha='right', va='top',
+                   bbox=dict(boxstyle='round,pad=0.2', facecolor=TV_BG, edgecolor=TV_BORDER, alpha=0.9))
 
         # Add indicator legend
         if legend_items:
@@ -401,7 +645,7 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             axes[0].legend(
                 handles=handles,
                 loc='upper left',
-                fontsize=8,
+                fontsize=7,
                 facecolor=TV_BG,
                 edgecolor=TV_BORDER,
                 labelcolor=TV_TEXT,
@@ -415,10 +659,12 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             ax.tick_params(colors=TV_TEXT, labelsize=8)
             for spine in ax.spines.values():
                 spine.set_color(TV_BORDER)
+
         fig.savefig(buf, dpi=150, bbox_inches='tight', facecolor=TV_BG, edgecolor='none')
         plt.close(fig)
         buf.seek(0)
         return buf
+
     except Exception as e:
         print(f"Chart error: {e}")
         import traceback
@@ -472,7 +718,7 @@ async def help_command(ctx):
     )
     embed.add_field(
         name='Overlays',
-        value='SMA 20 / 50 / 200 + VWAP',
+        value='SMA 20 / 50 / 200 + VWAP + B4 Indicator (SuperTrend, Squeeze, RSI)',
         inline=False
     )
     embed.add_field(
