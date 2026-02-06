@@ -502,24 +502,6 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             plots.append(mpf.make_addplot(df['VWAP'], color='#ffeb3b', width=1, linestyle='--', panel=0))
             legend_items.append(('VWAP', '#ffeb3b', '--'))
 
-        # SuperTrend bands on main chart - color by direction
-        for band_key, dir_key, lbl, w in [('st_upper', 'dir_upper', 'ST Upper', 1.0),
-                                            ('st_mid', 'dir_mid', 'ST Mid', 1.5),
-                                            ('st_lower', 'dir_lower', 'ST Lower', 1.0)]:
-            st_line = b4[band_key].copy()
-            st_dir = b4[dir_key].copy()
-            st_bull = st_line.copy()
-            st_bear = st_line.copy()
-            st_bull[st_dir != 1] = np.nan
-            st_bear[st_dir != -1] = np.nan
-            if st_bull.notna().any():
-                plots.append(mpf.make_addplot(st_bull, color='#00e676', width=w, panel=0))
-            if st_bear.notna().any():
-                plots.append(mpf.make_addplot(st_bear, color='#ff1744', width=w, panel=0))
-
-        legend_items.append(('ST Bull', '#00e676', '-'))
-        legend_items.append(('ST Bear', '#ff1744', '-'))
-
         # Buy/Sell markers on main chart
         buy_markers = pd.Series(np.nan, index=df.index)
         sell_markers = pd.Series(np.nan, index=df.index)
@@ -532,7 +514,26 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             sell_markers[sell_mask] = df['high'][sell_mask] * 1.002
             plots.append(mpf.make_addplot(sell_markers, type='scatter', marker='v', markersize=80, color='#ff1744', panel=0))
 
-        # === B4 Indicator Panel (panel 2) - Squeeze Momentum ===
+        # === B4 Indicator Panel (panel 2) ===
+        # SuperTrend bands in B4 panel
+        for band_key, dir_key, lbl, w in [('st_upper', 'dir_upper', 'ST Upper', 1.0),
+                                            ('st_mid', 'dir_mid', 'ST Mid', 1.5),
+                                            ('st_lower', 'dir_lower', 'ST Lower', 1.0)]:
+            st_line = b4[band_key].copy()
+            st_dir = b4[dir_key].copy()
+            st_bull = st_line.copy()
+            st_bear = st_line.copy()
+            st_bull[st_dir != 1] = np.nan
+            st_bear[st_dir != -1] = np.nan
+            if st_bull.notna().any():
+                plots.append(mpf.make_addplot(st_bull, color='#00e676', width=w, panel=2))
+            if st_bear.notna().any():
+                plots.append(mpf.make_addplot(st_bear, color='#ff1744', width=w, panel=2))
+
+        legend_items.append(('ST Bull', '#00e676', '-'))
+        legend_items.append(('ST Bear', '#ff1744', '-'))
+
+        # Squeeze Momentum
         mom = b4['squeeze_momentum']
         sq_on = b4['squeeze_on']
         
