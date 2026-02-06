@@ -11,6 +11,7 @@ import io
 import os
 import numpy as np
 from datetime import datetime, timedelta
+import pytz
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -37,10 +38,25 @@ def calculate_vwap(df):
 
 def make_chart(df, symbol, timeframe):
     try:
-        df['SMA20'] = df['close'].rolling(window=20).mean()
-        df['SMA50'] = df['close'].rolling(window=50).mean()
-        df['SMA200'] = df['close'].rolling(window=200).mean()
+        if len(df) < 2:
+            print(f"Not enough data for {symbol} {timeframe}: {len(df)} rows")
+            return None
+
+        plots = []
+
+        # Only add SMAs if we have enough data
+        if len(df) >= 20:
+            df['SMA20'] = df['close'].rolling(window=20).mean()
+            plots.append(mpf.make_addplot(df['SMA20'], color='#2962ff', width=1.2))
+        if len(df) >= 50:
+            df['SMA50'] = df['close'].rolling(window=50).mean()
+            plots.append(mpf.make_addplot(df['SMA50'], color='#ff6d00', width=1.2))
+        if len(df) >= 200:
+            df['SMA200'] = df['close'].rolling(window=200).mean()
+            plots.append(mpf.make_addplot(df['SMA200'], color='#ab47bc', width=1.5))
+
         df['VWAP'] = calculate_vwap(df)
+        plots.append(mpf.make_addplot(df['VWAP'], color='#ffeb3b', width=1, linestyle='--'))
 
         mc = mpf.make_marketcolors(
             up=TV_CANDLE_UP, down=TV_CANDLE_DOWN,
@@ -49,7 +65,6 @@ def make_chart(df, symbol, timeframe):
             volume={'up': TV_VOL_UP, 'down': TV_VOL_DOWN},
             ohlc={'up': TV_CANDLE_UP, 'down': TV_CANDLE_DOWN}
         )
-
         s = mpf.make_mpf_style(
             marketcolors=mc,
             facecolor=TV_BG,
@@ -70,19 +85,12 @@ def make_chart(df, symbol, timeframe):
             }
         )
 
-        plots = [
-            mpf.make_addplot(df['SMA20'], color='#2962ff', width=1.2),
-            mpf.make_addplot(df['SMA50'], color='#ff6d00', width=1.2),
-            mpf.make_addplot(df['SMA200'], color='#ab47bc', width=1.5),
-            mpf.make_addplot(df['VWAP'], color='#ffeb3b', width=1, linestyle='--')
-        ]
-
         last_close = df['close'].iloc[-1]
         prev_close = df['close'].iloc[-2] if len(df) > 1 else last_close
         change = last_close - prev_close
         pct_change = (change / prev_close) * 100
         sign = '+' if change >= 0 else ''
-        title = f'{symbol}  {timeframe}    {last_close:.2f}  {sign}{change:.2f} ({sign}{pct_change:.2f}%)'
+        title = f'{symbol} {timeframe}  {last_close:.2f}  {sign}{change:.2f} ({sign}{pct_change:.2f}%)'
 
         buf = io.BytesIO()
         fig, axes = mpf.plot(
@@ -95,27 +103,26 @@ def make_chart(df, symbol, timeframe):
             volume_panel=1,
             panel_ratios=(3, 1)
         )
-
         fig.suptitle(title, color=TV_TEXT, fontsize=13, fontweight='bold', x=0.08, ha='left')
-
         for ax in axes:
             ax.set_facecolor(TV_BG)
             ax.tick_params(colors=TV_TEXT, labelsize=8)
             for spine in ax.spines.values():
                 spine.set_color(TV_BORDER)
-
         fig.savefig(buf, dpi=150, bbox_inches='tight', facecolor=TV_BG, edgecolor='none')
         plt.close(fig)
         buf.seek(0)
         return buf
     except Exception as e:
         print(f"Chart error: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 @bot.command(name='c')
 async def chart_default(ctx, symbol: str = 'AAPL'):
     try:
-        await ctx.send(f"Generating weekly chart for {symbol}...")
+        await ctx.send(f"Generating weekly chart for {symbol.upper()}...")
         end_date = datetime.now()
         start_date = end_date - timedelta(days=365)
         request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Week, start=start_date, end=end_date, feed='iex')
@@ -124,10 +131,9 @@ async def chart_default(ctx, symbol: str = 'AAPL'):
         if symbol.upper() in df.index.get_level_values('symbol'):
             df = df.xs(symbol.upper(), level='symbol')
         df.index = df.index.tz_localize(None)
-        df = df.rename(columns={'open': 'open', 'high': 'high', 'low': 'low', 'close': 'close', 'volume': 'volume'})
         buf = make_chart(df, symbol.upper(), '1W')
         if buf is None:
-            await ctx.send(f"No data for {symbol}.")
+            await ctx.send(f"No data for {symbol.upper()}.")
             return
         await ctx.send(file=discord.File(buf, filename=f'{symbol}_weekly.png'))
     except Exception as e:
@@ -136,19 +142,18 @@ async def chart_default(ctx, symbol: str = 'AAPL'):
 @bot.command(name='cd')
 async def chart_daily(ctx, symbol: str = 'AAPL'):
     try:
-        await ctx.send(f"Generating daily chart for {symbol}...")
+        await ctx.send(f"Generating daily chart for {symbol.upper()}...")
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=365)
+        start_date = end_date - timedelta(days=90)
         request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Day, start=start_date, end=end_date, feed='iex')
         bars = stock_client.get_stock_bars(request)
         df = bars.df
         if symbol.upper() in df.index.get_level_values('symbol'):
             df = df.xs(symbol.upper(), level='symbol')
         df.index = df.index.tz_localize(None)
-        df = df.rename(columns={'open': 'open', 'high': 'high', 'low': 'low', 'close': 'close', 'volume': 'volume'})
         buf = make_chart(df, symbol.upper(), '1D')
         if buf is None:
-            await ctx.send(f"No data for {symbol}.")
+            await ctx.send(f"No data for {symbol.upper()}.")
             return
         await ctx.send(file=discord.File(buf, filename=f'{symbol}_daily.png'))
     except Exception as e:
@@ -157,41 +162,59 @@ async def chart_daily(ctx, symbol: str = 'AAPL'):
 @bot.command(name='ch')
 async def chart_hourly(ctx, symbol: str = 'AAPL'):
     try:
-        await ctx.send(f"Generating hourly chart for {symbol}...")
+        await ctx.send(f"Generating hourly chart for {symbol.upper()}...")
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=30)
+        start_date = end_date - timedelta(days=5)
         request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Hour, start=start_date, end=end_date, feed='iex')
         bars = stock_client.get_stock_bars(request)
         df = bars.df
         if symbol.upper() in df.index.get_level_values('symbol'):
             df = df.xs(symbol.upper(), level='symbol')
         df.index = df.index.tz_localize(None)
-        df = df.rename(columns={'open': 'open', 'high': 'high', 'low': 'low', 'close': 'close', 'volume': 'volume'})
         buf = make_chart(df, symbol.upper(), '1H')
         if buf is None:
-            await ctx.send(f"No data for {symbol}.")
+            await ctx.send(f"No data for {symbol.upper()}.")
             return
         await ctx.send(file=discord.File(buf, filename=f'{symbol}_hourly.png'))
     except Exception as e:
         await ctx.send(f"Error: {e}")
 
-async def _chart_minute(ctx, symbol, minutes, days):
+async def _chart_minute(ctx, symbol, minutes):
     try:
-        await ctx.send(f"Generating {minutes}min chart for {symbol}...")
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
-        request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Minute, start=start_date, end=end_date, feed='iex')
+        await ctx.send(f"Generating {minutes}min chart for {symbol.upper()}...")
+        # Get today's data only
+        et = pytz.timezone('US/Eastern')
+        now_et = datetime.now(et)
+        today_start = now_et.replace(hour=4, minute=0, second=0, microsecond=0)
+        if now_et.hour < 4:
+            today_start = today_start - timedelta(days=1)
+
+        request = StockBarsRequest(
+            symbol_or_symbols=symbol.upper(),
+            timeframe=TimeFrame.Minute,
+            start=today_start,
+            end=now_et,
+            feed='iex'
+        )
         bars = stock_client.get_stock_bars(request)
         df = bars.df
+        if len(df) == 0:
+            await ctx.send(f"No data for {symbol.upper()} today. Market may be closed.")
+            return
         if symbol.upper() in df.index.get_level_values('symbol'):
             df = df.xs(symbol.upper(), level='symbol')
         if minutes > 1:
-            df = df.resample(f'{minutes}min').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum'}).dropna()
+            df = df.resample(f'{minutes}min').agg({
+                'open': 'first', 'high': 'max', 'low': 'min',
+                'close': 'last', 'volume': 'sum'
+            }).dropna()
         df.index = df.index.tz_localize(None)
-        df = df.rename(columns={'open': 'open', 'high': 'high', 'low': 'low', 'close': 'close', 'volume': 'volume'})
+        if len(df) < 2:
+            await ctx.send(f"Not enough data for {symbol.upper()} today yet.")
+            return
         buf = make_chart(df, symbol.upper(), f'{minutes}m')
         if buf is None:
-            await ctx.send(f"No data for {symbol}.")
+            await ctx.send(f"No data for {symbol.upper()}.")
             return
         await ctx.send(file=discord.File(buf, filename=f'{symbol}_{minutes}min.png'))
     except Exception as e:
@@ -199,19 +222,19 @@ async def _chart_minute(ctx, symbol, minutes, days):
 
 @bot.command(name='cm1')
 async def chart_1min(ctx, symbol: str = 'AAPL'):
-    await _chart_minute(ctx, symbol, 1, 2)
+    await _chart_minute(ctx, symbol, 1)
 
 @bot.command(name='cm5')
 async def chart_5min(ctx, symbol: str = 'AAPL'):
-    await _chart_minute(ctx, symbol, 5, 5)
+    await _chart_minute(ctx, symbol, 5)
 
 @bot.command(name='cm15')
 async def chart_15min(ctx, symbol: str = 'AAPL'):
-    await _chart_minute(ctx, symbol, 15, 10)
+    await _chart_minute(ctx, symbol, 15)
 
 @bot.command(name='cm30')
 async def chart_30min(ctx, symbol: str = 'AAPL'):
-    await _chart_minute(ctx, symbol, 30, 15)
+    await _chart_minute(ctx, symbol, 30)
 
 @bot.event
 async def on_ready():
