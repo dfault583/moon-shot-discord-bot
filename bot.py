@@ -732,12 +732,12 @@ async def help_command(ctx):
         inline=False
     )
     embed.add_field(
-                name='Options',
-                value='**!10bagger** \u2014 Current high-risk/high-reward option trade pick',
-                        inline=False
+        name='Options',
+        value='**!10bagger** \u2014 Current high-risk/high-reward option trade pick',
+        inline=False
     )
-      embed.set_footer(text='Default stock: AAPL | Default crypto: BTC')
-await ctx.send(embed=embed)
+    embed.set_footer(text='Default stock: AAPL | Default crypto: BTC')
+    await ctx.send(embed=embed)
 
 # STOCK COMMANDS
 # ============================================================
