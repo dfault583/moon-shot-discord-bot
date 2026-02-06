@@ -89,7 +89,7 @@ YF_INTERVALS = {
     '5min': '5m',
     '15min': '15m',
     '30min': '30m',
-    }
+}
 
 def get_bars_alpaca(symbol, timeframe, start_date, end_date):
     """Try to get data from Alpaca first."""
@@ -295,12 +295,15 @@ async def help_command(ctx):
     embed.add_field(
         name='Crypto Charts',
         value=(
-            '**!crypto SYMBOL** \u2014 Daily crypto chart (3 months)\n'
-            '**!cryptow SYMBOL** \u2014 Weekly crypto chart (1 year)\n'
-            '**!cryptom SYMBOL** \u2014 Monthly crypto chart (2 years)\n'
-            '**!cryptoh SYMBOL** \u2014 Hourly crypto chart (5 days)\n'
-            '**!crypto15 SYMBOL** \u2014 15 min crypto chart (1 day)\n'
-            '\nExamples: !crypto BTC, !cryptow ETH, !cryptoh SOL'
+            '**!ccm SYMBOL** \u2014 Monthly chart (2 years)\n'
+            '**!ccw SYMBOL** \u2014 Weekly chart (1 year)\n'
+            '**!cc SYMBOL** \u2014 Daily chart (3 months)\n'
+            '**!cch SYMBOL** \u2014 Hourly chart (5 days)\n'
+            '**!cc1 SYMBOL** \u2014 1 min chart (today)\n'
+            '**!cc5 SYMBOL** \u2014 5 min chart (today)\n'
+            '**!cc15 SYMBOL** \u2014 15 min chart (today)\n'
+            '**!cc30 SYMBOL** \u2014 30 min chart (today)\n'
+            '\nExamples: !cc BTC, !ccw ETH, !cch SOL'
         ),
         inline=False
     )
@@ -316,6 +319,10 @@ async def help_command(ctx):
     )
     embed.set_footer(text='Default stock: AAPL | Default crypto: BTC')
     await ctx.send(embed=embed)
+
+# ============================================================
+# STOCK COMMANDS
+# ============================================================
 
 @bot.command(name='cm')
 async def chart_monthly(ctx, symbol: str = 'AAPL'):
@@ -458,7 +465,7 @@ async def chart_30min(ctx, symbol: str = 'AAPL'):
 # CRYPTO COMMANDS
 # ============================================================
 
-@bot.command(name='crypto')
+@bot.command(name='cc')
 async def crypto_daily(ctx, symbol: str = 'BTC'):
     """Daily crypto chart (3 months)."""
     try:
@@ -477,26 +484,7 @@ async def crypto_daily(ctx, symbol: str = 'BTC'):
     except Exception as e:
         await ctx.send(f"Error: {e}")
 
-@bot.command(name='cryptow')
-async def crypto_weekly(ctx, symbol: str = 'BTC'):
-    """Weekly crypto chart (1 year)."""
-    try:
-        ticker = resolve_crypto_symbol(symbol)
-        display_name = ticker.replace('-USD', '')
-        await ctx.send(f"Generating weekly chart for {display_name}...")
-        df = get_crypto_bars(symbol, '1wk', period='1y')
-        if df is None:
-            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
-            return
-        buf = make_chart(df, display_name, '1W', display_count=52, source='yfinance')
-        if buf is None:
-            await ctx.send(f"Could not generate chart for {display_name}.")
-            return
-        await ctx.send(file=discord.File(buf, filename=f'{display_name}_crypto_weekly.png'))
-    except Exception as e:
-        await ctx.send(f"Error: {e}")
-
-@bot.command(name='cryptom')
+@bot.command(name='ccm')
 async def crypto_monthly(ctx, symbol: str = 'BTC'):
     """Monthly crypto chart (2 years)."""
     try:
@@ -515,7 +503,26 @@ async def crypto_monthly(ctx, symbol: str = 'BTC'):
     except Exception as e:
         await ctx.send(f"Error: {e}")
 
-@bot.command(name='cryptoh')
+@bot.command(name='ccw')
+async def crypto_weekly(ctx, symbol: str = 'BTC'):
+    """Weekly crypto chart (1 year)."""
+    try:
+        ticker = resolve_crypto_symbol(symbol)
+        display_name = ticker.replace('-USD', '')
+        await ctx.send(f"Generating weekly chart for {display_name}...")
+        df = get_crypto_bars(symbol, '1wk', period='1y')
+        if df is None:
+            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
+            return
+        buf = make_chart(df, display_name, '1W', display_count=52, source='yfinance')
+        if buf is None:
+            await ctx.send(f"Could not generate chart for {display_name}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{display_name}_crypto_weekly.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
+
+@bot.command(name='cch')
 async def crypto_hourly(ctx, symbol: str = 'BTC'):
     """Hourly crypto chart (5 days)."""
     try:
@@ -534,24 +541,45 @@ async def crypto_hourly(ctx, symbol: str = 'BTC'):
     except Exception as e:
         await ctx.send(f"Error: {e}")
 
-@bot.command(name='crypto15')
-async def crypto_15min(ctx, symbol: str = 'BTC'):
-    """15 min crypto chart (1 day)."""
+async def _crypto_chart_minute(ctx, symbol, minutes):
+    """Minute-level crypto chart helper."""
     try:
         ticker = resolve_crypto_symbol(symbol)
         display_name = ticker.replace('-USD', '')
-        await ctx.send(f"Generating 15min chart for {display_name}...")
-        df = get_crypto_bars(symbol, '15m', period='1d')
-        if df is None:
-            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
+        await ctx.send(f"Generating {minutes}min chart for {display_name}...")
+        yf_interval = f'{minutes}m' if minutes > 1 else '1m'
+        df = get_crypto_bars(symbol, yf_interval, period='1d')
+        if df is None or len(df) == 0:
+            await ctx.send(f"No data found for {display_name}. Try again later.")
             return
-        buf = make_chart(df, display_name, '15m', source='yfinance')
+        if df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+        if len(df) < 2:
+            await ctx.send(f"Not enough data for {display_name} yet.")
+            return
+        buf = make_chart(df, display_name, f'{minutes}m', source='yfinance')
         if buf is None:
             await ctx.send(f"Could not generate chart for {display_name}.")
             return
-        await ctx.send(file=discord.File(buf, filename=f'{display_name}_crypto_15min.png'))
+        await ctx.send(file=discord.File(buf, filename=f'{display_name}_crypto_{minutes}min.png'))
     except Exception as e:
         await ctx.send(f"Error: {e}")
+
+@bot.command(name='cc1')
+async def crypto_1min(ctx, symbol: str = 'BTC'):
+    await _crypto_chart_minute(ctx, symbol, 1)
+
+@bot.command(name='cc5')
+async def crypto_5min(ctx, symbol: str = 'BTC'):
+    await _crypto_chart_minute(ctx, symbol, 5)
+
+@bot.command(name='cc15')
+async def crypto_15min(ctx, symbol: str = 'BTC'):
+    await _crypto_chart_minute(ctx, symbol, 15)
+
+@bot.command(name='cc30')
+async def crypto_30min(ctx, symbol: str = 'BTC'):
+    await _crypto_chart_minute(ctx, symbol, 30)
 
 @bot.event
 async def on_ready():
