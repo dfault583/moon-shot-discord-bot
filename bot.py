@@ -155,6 +155,160 @@ def get_crypto_bars(symbol, yf_interval, period=None, start_date=None, end_date=
         return df
     return None
 
+
+def get_price_info(symbol):
+    """Get current price info for a stock or crypto, including pre/post market."""
+    symbol = symbol.upper().strip()
+
+    # Try as stock first
+    try:
+        ticker = yf.Ticker(symbol)
+        info = ticker.fast_info
+        if info and hasattr(info, 'last_price') and info.last_price is not None:
+            result = _build_price_embed(ticker, symbol, is_crypto=False)
+            if result:
+                return result
+    except Exception as e:
+        print(f"Stock lookup failed for {symbol}: {e}")
+
+    # Try as crypto
+    crypto_ticker_str = resolve_crypto_symbol(symbol)
+    try:
+        ticker = yf.Ticker(crypto_ticker_str)
+        info = ticker.fast_info
+        if info and hasattr(info, 'last_price') and info.last_price is not None:
+            result = _build_price_embed(ticker, crypto_ticker_str, is_crypto=True)
+            if result:
+                return result
+    except Exception as e:
+        print(f"Crypto lookup failed for {crypto_ticker_str}: {e}")
+
+    return None
+
+def _build_price_embed(ticker, symbol, is_crypto=False):
+    """Build a Discord embed with price info."""
+    try:
+        info = ticker.fast_info
+        display_name = symbol.replace('-USD', '') if is_crypto else symbol
+
+        last_price = info.last_price
+        prev_close = info.previous_close if hasattr(info, 'previous_close') and info.previous_close else None
+        open_price = info.open if hasattr(info, 'open') and info.open else None
+        day_high = info.day_high if hasattr(info, 'day_high') and info.day_high else None
+        day_low = info.day_low if hasattr(info, 'day_low') and info.day_low else None
+        volume = info.last_volume if hasattr(info, 'last_volume') and info.last_volume else None
+
+        # Calculate change from previous close
+        change = 0
+        pct_change = 0
+        if prev_close and prev_close > 0:
+            change = last_price - prev_close
+            pct_change = (change / prev_close) * 100
+
+        sign = '+' if change >= 0 else ''
+        color = 0x26a69a if change >= 0 else 0xef5350
+
+        # Determine market status and extended hours price
+        market_status = ''
+        extended_price = None
+        extended_change = None
+        extended_pct = None
+
+        if not is_crypto:
+            et = pytz.timezone('US/Eastern')
+            now_et = datetime.now(et)
+            hour = now_et.hour
+            minute = now_et.minute
+            weekday = now_et.weekday()  # 0=Mon, 6=Sun
+
+            if weekday >= 5:
+                market_status = 'Market Closed (Weekend)'
+            elif hour < 4:
+                market_status = 'Market Closed'
+            elif hour < 9 or (hour == 9 and minute < 30):
+                market_status = 'Pre-Market'
+            elif hour < 16:
+                market_status = 'Market Open'
+            elif hour < 20:
+                market_status = 'After Hours'
+            else:
+                market_status = 'Market Closed'
+
+            # Get extended hours price data
+            try:
+                ext_info = ticker.info
+                if market_status == 'Pre-Market':
+                    pre_price = ext_info.get('preMarketPrice')
+                    if pre_price and pre_price > 0 and prev_close and prev_close > 0:
+                        extended_price = pre_price
+                        extended_change = pre_price - prev_close
+                        extended_pct = (extended_change / prev_close) * 100
+                elif market_status == 'After Hours':
+                    post_price = ext_info.get('postMarketPrice')
+                    if post_price and post_price > 0:
+                        extended_price = post_price
+                        extended_change = post_price - last_price
+                        extended_pct = (extended_change / last_price) * 100
+            except Exception as e:
+                print(f"Extended hours data error: {e}")
+        else:
+            market_status = '24/7 Market'
+        # Build embed
+        asset_type = 'Crypto' if is_crypto else 'Stock'
+        embed = discord.Embed(
+            title=f'{display_name}',
+            color=color
+        )
+
+        # Main price line
+        embed.add_field(
+            name='Price',
+            value=f'**${last_price:,.2f}** {sign}{change:,.2f} ({sign}{pct_change:.2f}%)',
+            inline=False
+        )
+
+        # Extended hours price if available
+        if extended_price is not None:
+            ext_sign = '+' if extended_change >= 0 else ''
+            ext_label = 'Pre-Market' if market_status == 'Pre-Market' else 'After Hours'
+            embed.add_field(
+                name=ext_label,
+                value=f'**${extended_price:,.2f}** {ext_sign}{extended_change:,.2f} ({ext_sign}{extended_pct:.2f}%)',
+                inline=False
+            )
+
+        # Details
+        details = []
+        if prev_close:
+            details.append(f'Prev Close: ${prev_close:,.2f}')
+        if open_price:
+            details.append(f'Open: ${open_price:,.2f}')
+        if day_high and day_low:
+            details.append(f'Range: ${day_low:,.2f} - ${day_high:,.2f}')
+        if volume:
+            if volume >= 1_000_000:
+                vol_str = f'{volume / 1_000_000:.2f}M'
+            elif volume >= 1_000:
+                vol_str = f'{volume / 1_000:.1f}K'
+            else:
+                vol_str = f'{volume:,}'
+            details.append(f'Volume: {vol_str}')
+
+        if details:
+            embed.add_field(
+                name='Details',
+                value='\n'.join(details),
+                inline=False
+            )
+
+        embed.set_footer(text=f'{asset_type} \u2022 {market_status}')
+        return embed
+    except Exception as e:
+        print(f"Build price embed error: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
 def calculate_vwap(df):
     tp = (df['high'] + df['low'] + df['close']) / 3
     return (tp * df['volume']).cumsum() / df['volume'].cumsum()
@@ -304,6 +458,15 @@ async def help_command(ctx):
             '**!cc15 SYMBOL** \u2014 15 min chart (today)\n'
             '**!cc30 SYMBOL** \u2014 30 min chart (today)\n'
             '\nExamples: !cc BTC, !ccw ETH, !cch SOL'
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name='Price Check',
+        value=(
+            '**!p SYMBOL** \u2014 Quick price check (stocks & crypto)\n'
+            'Shows current price, change, pre-market/after-hours data\n'
+            'Example: !p AAPL, !p BTC, !p TSLA'
         ),
         inline=False
     )
@@ -460,6 +623,24 @@ async def chart_15min(ctx, symbol: str = 'AAPL'):
 @bot.command(name='cm30')
 async def chart_30min(ctx, symbol: str = 'AAPL'):
     await _chart_minute(ctx, symbol, 30)
+
+
+# ============================================================
+# PRICE COMMAND
+# ============================================================
+
+@bot.command(name='p')
+async def price_check(ctx, symbol: str = 'AAPL'):
+    """Quick price check for stocks and crypto."""
+    try:
+        symbol = symbol.upper().strip()
+        embed = get_price_info(symbol)
+        if embed is None:
+            await ctx.send(f'No data found for {symbol}. Check the symbol and try again.')
+            return
+        await ctx.send(embed=embed)
+    except Exception as e:
+        await ctx.send(f'Error: {e}')
 
 # ============================================================
 # CRYPTO COMMANDS
