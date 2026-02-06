@@ -8,9 +8,11 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib.lines import Line2D
+import yfinance as yf
 import io
 import os
 import numpy as np
+import pandas as pd
 from datetime import datetime, timedelta
 import pytz
 
@@ -34,11 +36,79 @@ TV_BORDER = '#2a2e39'
 TV_VOL_UP = '#26a69a'
 TV_VOL_DOWN = '#ef5350'
 
+# Timeframe mappings for yfinance
+YF_INTERVALS = {
+    'month': '1mo',
+    'week': '1wk',
+    'day': '1d',
+    'hour': '1h',
+    '1min': '1m',
+    '5min': '5m',
+    '15min': '15m',
+    '30min': '30m',
+}
+
+def get_bars_alpaca(symbol, timeframe, start_date, end_date):
+    """Try to get data from Alpaca first."""
+    try:
+        request = StockBarsRequest(
+            symbol_or_symbols=symbol,
+            timeframe=timeframe,
+            start=start_date,
+            end=end_date,
+            feed='iex'
+        )
+        bars = stock_client.get_stock_bars(request)
+        df = bars.df
+        if len(df) == 0:
+            return None
+        if symbol in df.index.get_level_values('symbol'):
+            df = df.xs(symbol, level='symbol')
+        df.index = df.index.tz_localize(None)
+        return df
+    except Exception as e:
+        print(f"Alpaca error for {symbol}: {e}")
+        return None
+
+def get_bars_yfinance(symbol, interval, period=None, start_date=None, end_date=None):
+    """Fallback to yfinance for OTC and unsupported tickers."""
+    try:
+        ticker = yf.Ticker(symbol)
+        if period:
+            df = ticker.history(period=period, interval=interval)
+        else:
+            df = ticker.history(start=start_date, end=end_date, interval=interval)
+        if df is None or len(df) == 0:
+            return None
+        df.columns = [c.lower() for c in df.columns]
+        df = df.rename(columns={'stock splits': 'stock_splits'})
+        # Keep only OHLCV columns
+        cols = ['open', 'high', 'low', 'close', 'volume']
+        df = df[[c for c in cols if c in df.columns]]
+        df.index.name = 'timestamp'
+        if df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+        return df
+    except Exception as e:
+        print(f"yfinance error for {symbol}: {e}")
+        return None
+
+def get_bars(symbol, alpaca_tf, yf_interval, start_date, end_date, yf_period=None):
+    """Try Alpaca first, fall back to yfinance."""
+    df = get_bars_alpaca(symbol, alpaca_tf, start_date, end_date)
+    if df is not None and len(df) > 0:
+        return df, 'alpaca'
+    print(f"Alpaca returned no data for {symbol}, trying yfinance...")
+    df = get_bars_yfinance(symbol, yf_interval, period=yf_period, start_date=start_date, end_date=end_date)
+    if df is not None and len(df) > 0:
+        return df, 'yfinance'
+    return None, None
+
 def calculate_vwap(df):
     tp = (df['high'] + df['low'] + df['close']) / 3
     return (tp * df['volume']).cumsum() / df['volume'].cumsum()
 
-def make_chart(df, symbol, timeframe, display_count=None):
+def make_chart(df, symbol, timeframe, display_count=None, source=None):
     try:
         if len(df) < 2:
             print(f"Not enough data for {symbol} {timeframe}: {len(df)} rows")
@@ -102,7 +172,8 @@ def make_chart(df, symbol, timeframe, display_count=None):
         change = last_close - prev_close
         pct_change = (change / prev_close) * 100
         sign = '+' if change >= 0 else ''
-        title = f'{symbol} {timeframe}  {last_close:.2f}  {sign}{change:.2f} ({sign}{pct_change:.2f}%)'
+        src_tag = ' [YF]' if source == 'yfinance' else ''
+        title = f'{symbol} {timeframe}  {last_close:.2f}  {sign}{change:.2f} ({sign}{pct_change:.2f}%){src_tag}'
 
         buf = io.BytesIO()
         fig, axes = mpf.plot(
@@ -153,7 +224,7 @@ def make_chart(df, symbol, timeframe, display_count=None):
 async def help_command(ctx):
     embed = discord.Embed(
         title='Moon Shot Commands',
-        description='Stock charting bot powered by Alpaca',
+        description='Stock charting bot powered by Alpaca + Yahoo Finance',
         color=0x26a69a
     )
     embed.add_field(
@@ -175,24 +246,28 @@ async def help_command(ctx):
         value='SMA 20 / 50 / 200 + VWAP',
         inline=False
     )
+    embed.add_field(
+        name='Data',
+        value='Supports NYSE, NASDAQ & OTC stocks. OTC tickers use Yahoo Finance as fallback.',
+        inline=False
+    )
     embed.set_footer(text='Default symbol: AAPL')
     await ctx.send(embed=embed)
 
 @bot.command(name='cm')
 async def chart_monthly(ctx, symbol: str = 'AAPL'):
     try:
-        await ctx.send(f"Generating monthly chart for {symbol.upper()}...")
+        symbol = symbol.upper()
+        await ctx.send(f"Generating monthly chart for {symbol}...")
         end_date = datetime.now()
         start_date = end_date - timedelta(days=730)
-        request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Month, start=start_date, end=end_date, feed='iex')
-        bars = stock_client.get_stock_bars(request)
-        df = bars.df
-        if symbol.upper() in df.index.get_level_values('symbol'):
-            df = df.xs(symbol.upper(), level='symbol')
-        df.index = df.index.tz_localize(None)
-        buf = make_chart(df, symbol.upper(), '1M')
+        df, source = get_bars(symbol, TimeFrame.Month, '1mo', start_date, end_date, yf_period='2y')
+        if df is None:
+            await ctx.send(f"No data found for {symbol}.")
+            return
+        buf = make_chart(df, symbol, '1M', source=source)
         if buf is None:
-            await ctx.send(f"No data for {symbol.upper()}.")
+            await ctx.send(f"No data for {symbol}.")
             return
         await ctx.send(file=discord.File(buf, filename=f'{symbol}_monthly.png'))
     except Exception as e:
@@ -201,18 +276,17 @@ async def chart_monthly(ctx, symbol: str = 'AAPL'):
 @bot.command(name='cw')
 async def chart_weekly(ctx, symbol: str = 'AAPL'):
     try:
-        await ctx.send(f"Generating weekly chart for {symbol.upper()}...")
+        symbol = symbol.upper()
+        await ctx.send(f"Generating weekly chart for {symbol}...")
         end_date = datetime.now()
         start_date = end_date - timedelta(days=365*2)
-        request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Week, start=start_date, end=end_date, feed='iex')
-        bars = stock_client.get_stock_bars(request)
-        df = bars.df
-        if symbol.upper() in df.index.get_level_values('symbol'):
-            df = df.xs(symbol.upper(), level='symbol')
-        df.index = df.index.tz_localize(None)
-        buf = make_chart(df, symbol.upper(), '1W', display_count=52)
+        df, source = get_bars(symbol, TimeFrame.Week, '1wk', start_date, end_date, yf_period='2y')
+        if df is None:
+            await ctx.send(f"No data found for {symbol}.")
+            return
+        buf = make_chart(df, symbol, '1W', display_count=52, source=source)
         if buf is None:
-            await ctx.send(f"No data for {symbol.upper()}.")
+            await ctx.send(f"No data for {symbol}.")
             return
         await ctx.send(file=discord.File(buf, filename=f'{symbol}_weekly.png'))
     except Exception as e:
@@ -221,18 +295,17 @@ async def chart_weekly(ctx, symbol: str = 'AAPL'):
 @bot.command(name='cd')
 async def chart_daily(ctx, symbol: str = 'AAPL'):
     try:
-        await ctx.send(f"Generating daily chart for {symbol.upper()}...")
+        symbol = symbol.upper()
+        await ctx.send(f"Generating daily chart for {symbol}...")
         end_date = datetime.now()
         start_date = end_date - timedelta(days=365)
-        request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Day, start=start_date, end=end_date, feed='iex')
-        bars = stock_client.get_stock_bars(request)
-        df = bars.df
-        if symbol.upper() in df.index.get_level_values('symbol'):
-            df = df.xs(symbol.upper(), level='symbol')
-        df.index = df.index.tz_localize(None)
-        buf = make_chart(df, symbol.upper(), '1D', display_count=65)
+        df, source = get_bars(symbol, TimeFrame.Day, '1d', start_date, end_date, yf_period='1y')
+        if df is None:
+            await ctx.send(f"No data found for {symbol}.")
+            return
+        buf = make_chart(df, symbol, '1D', display_count=65, source=source)
         if buf is None:
-            await ctx.send(f"No data for {symbol.upper()}.")
+            await ctx.send(f"No data for {symbol}.")
             return
         await ctx.send(file=discord.File(buf, filename=f'{symbol}_daily.png'))
     except Exception as e:
@@ -241,18 +314,17 @@ async def chart_daily(ctx, symbol: str = 'AAPL'):
 @bot.command(name='ch')
 async def chart_hourly(ctx, symbol: str = 'AAPL'):
     try:
-        await ctx.send(f"Generating hourly chart for {symbol.upper()}...")
+        symbol = symbol.upper()
+        await ctx.send(f"Generating hourly chart for {symbol}...")
         end_date = datetime.now()
         start_date = end_date - timedelta(days=30)
-        request = StockBarsRequest(symbol_or_symbols=symbol.upper(), timeframe=TimeFrame.Hour, start=start_date, end=end_date, feed='iex')
-        bars = stock_client.get_stock_bars(request)
-        df = bars.df
-        if symbol.upper() in df.index.get_level_values('symbol'):
-            df = df.xs(symbol.upper(), level='symbol')
-        df.index = df.index.tz_localize(None)
-        buf = make_chart(df, symbol.upper(), '1H', display_count=40)
+        df, source = get_bars(symbol, TimeFrame.Hour, '1h', start_date, end_date, yf_period='5d')
+        if df is None:
+            await ctx.send(f"No data found for {symbol}.")
+            return
+        buf = make_chart(df, symbol, '1H', display_count=40, source=source)
         if buf is None:
-            await ctx.send(f"No data for {symbol.upper()}.")
+            await ctx.send(f"No data for {symbol}.")
             return
         await ctx.send(file=discord.File(buf, filename=f'{symbol}_hourly.png'))
     except Exception as e:
@@ -260,39 +332,44 @@ async def chart_hourly(ctx, symbol: str = 'AAPL'):
 
 async def _chart_minute(ctx, symbol, minutes):
     try:
-        await ctx.send(f"Generating {minutes}min chart for {symbol.upper()}...")
+        symbol = symbol.upper()
+        await ctx.send(f"Generating {minutes}min chart for {symbol}...")
         et = pytz.timezone('US/Eastern')
         now_et = datetime.now(et)
         today_start = now_et.replace(hour=4, minute=0, second=0, microsecond=0)
         if now_et.hour < 4:
             today_start = today_start - timedelta(days=1)
 
-        request = StockBarsRequest(
-            symbol_or_symbols=symbol.upper(),
-            timeframe=TimeFrame.Minute,
-            start=today_start,
-            end=now_et,
-            feed='iex'
-        )
-        bars = stock_client.get_stock_bars(request)
-        df = bars.df
-        if len(df) == 0:
-            await ctx.send(f"No data for {symbol.upper()} today. Market may be closed.")
+        # Try Alpaca first
+        df = get_bars_alpaca(symbol, TimeFrame.Minute, today_start, now_et)
+        source = 'alpaca'
+
+        # Fallback to yfinance
+        if df is None or len(df) == 0:
+            print(f"Alpaca no minute data for {symbol}, trying yfinance...")
+            yf_interval = f'{minutes}m' if minutes > 1 else '1m'
+            df = get_bars_yfinance(symbol, yf_interval, period='1d')
+            source = 'yfinance'
+
+        if df is None or len(df) == 0:
+            await ctx.send(f"No data for {symbol} today. Market may be closed.")
             return
-        if symbol.upper() in df.index.get_level_values('symbol'):
-            df = df.xs(symbol.upper(), level='symbol')
-        if minutes > 1:
+
+        if minutes > 1 and source == 'alpaca':
             df = df.resample(f'{minutes}min').agg({
                 'open': 'first', 'high': 'max', 'low': 'min',
                 'close': 'last', 'volume': 'sum'
             }).dropna()
-        df.index = df.index.tz_localize(None)
+
+        if df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+
         if len(df) < 2:
-            await ctx.send(f"Not enough data for {symbol.upper()} today yet.")
+            await ctx.send(f"Not enough data for {symbol} today yet.")
             return
-        buf = make_chart(df, symbol.upper(), f'{minutes}m')
+        buf = make_chart(df, symbol, f'{minutes}m', source=source)
         if buf is None:
-            await ctx.send(f"No data for {symbol.upper()}.")
+            await ctx.send(f"No data for {symbol}.")
             return
         await ctx.send(file=discord.File(buf, filename=f'{symbol}_{minutes}min.png'))
     except Exception as e:
