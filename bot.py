@@ -592,9 +592,13 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
         )
 
         last_close = df['close'].iloc[-1]
-        prev_close = df['close'].iloc[-2] if len(df) > 1 else last_close
-        change = last_close - prev_close
-        pct_change = (change / prev_close) * 100
+        # For intraday charts, compare to day's open; for daily+ compare to previous close
+        if timeframe in ('1m', '5m', '15m', '30m', '1H'):
+            ref_price = df['open'].iloc[0]
+        else:
+            ref_price = df['close'].iloc[-2] if len(df) > 1 else last_close
+        change = last_close - ref_price
+        pct_change = (change / ref_price) * 100
         sign = '+' if change >= 0 else ''
         src_tag = ' [YF]' if source == 'yfinance' else ''
         title = f'{symbol} {timeframe}  {last_close:.2f}  {sign}{change:.2f} ({sign}{pct_change:.2f}%){src_tag}'
