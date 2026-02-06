@@ -297,7 +297,7 @@ async def help_command(ctx):
         value=(
             '**!ccm SYMBOL** \u2014 Monthly chart (2 years)\n'
             '**!ccw SYMBOL** \u2014 Weekly chart (1 year)\n'
-            '**!cc SYMBOL** \u2014 Daily chart (3 months)\n'
+            '**!ccd SYMBOL** \u2014 Daily chart (3 months)\n'
             '**!cch SYMBOL** \u2014 Hourly chart (5 days)\n'
             '**!cc1 SYMBOL** \u2014 1 min chart (today)\n'
             '**!cc5 SYMBOL** \u2014 5 min chart (today)\n'
@@ -465,7 +465,7 @@ async def chart_30min(ctx, symbol: str = 'AAPL'):
 # CRYPTO COMMANDS
 # ============================================================
 
-@bot.command(name='cc')
+@bot.command(name='ccd')
 async def crypto_daily(ctx, symbol: str = 'BTC'):
     """Daily crypto chart (3 months)."""
     try:
