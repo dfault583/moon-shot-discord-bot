@@ -731,10 +731,14 @@ async def help_command(ctx):
         value='Stocks: NYSE, NASDAQ & OTC (Alpaca + Yahoo Finance)\nCrypto: BTC, ETH, SOL, XRP, DOGE, ADA, and 30+ more via Yahoo Finance',
         inline=False
     )
-    embed.set_footer(text='Default stock: AAPL | Default crypto: BTC')
-    await ctx.send(embed=embed)
+    embed.add_field(
+                name='Options',
+                value='**!10bagger** \u2014 Current high-risk/high-reward option trade pick',
+                        inline=False
+    )
+      embed.set_footer(text='Default stock: AAPL | Default crypto: BTC')
+await ctx.send(embed=embed)
 
-# ============================================================
 # STOCK COMMANDS
 # ============================================================
 
@@ -1017,4 +1021,57 @@ async def crypto_30min(ctx, symbol: str = 'BTC'):
 async def on_ready():
     print(f'{bot.user} has connected to Discord!')
 
+
+# ============================================================
+# 10-BAGGER OPTION TRADE COMMAND
+# ============================================================
+@bot.command(name='10bagger')
+async def ten_bagger(ctx):
+        """Show the current high-risk high-reward option trade pick."""
+        embed = discord.Embed(
+                    title='\U0001f680 10-Bagger Option Play \U0001f680',
+                    description='High-risk, high-reward option trade pick. **This is NOT financial advice. Do your own research.**',
+                    color=0xffeb3b
+        )
+        embed.add_field(
+                    name='\U0001f4c8 Trade Setup',
+                    value=(
+                                    '**Ticker:** NVDA (NVIDIA)\n'
+                                    '**Contract:** $200 Call\n'
+                                    '**Expiration:** Feb 20, 2026\n'
+                                    '**Entry Price:** ~$0.96\n'
+                                    '**Type:** OTM Call (~8.3% out of the money)'
+                    ),
+                    inline=False
+        )
+        embed.add_field(
+                    name='\U0001f3af Why This Trade',
+                    value=(
+                                    '\u2022 NVDA surging +7.5% today on AI spending momentum\n'
+                                    '\u2022 Jensen Huang says AI buildout demand is "sky high"\n'
+                                    '\u2022 Big Tech committed $650B+ in AI capex for 2026\n'
+                                    '\u2022 Massive open interest: 97,876 contracts at this strike\n'
+                                    '\u2022 NVDA 195/205 call spread saw 10,262 contracts today\n'
+                                    '\u2022 Only needs ~8% move to go ITM in 2 weeks'
+                    ),
+                    inline=False
+        )
+        embed.add_field(
+                    name='\U0001f4b0 Risk/Reward',
+                    value=(
+                                    '**Max Loss:** Premium paid (~$96 per contract)\n'
+                                    '**Break Even:** $200.96 at expiration\n'
+                                    '**10x Target:** NVDA hits ~$210 by Feb 20\n'
+                                    '**Reward if NVDA hits $215:** ~$14.04 per contract (14.6x)\n'
+                                    '**Probability:** Low \u2014 this is a lottery ticket \U0001f3b0'
+                    ),
+                    inline=False
+        )
+        embed.add_field(
+                    name='\u26a0\ufe0f Risk Level',
+                    value='**EXTREME** \u2014 OTM options expire worthless most of the time. Only play with money you can afford to lose entirely.',
+                    inline=False
+        )
+        embed.set_footer(text='Updated: Feb 6, 2026 \u2022 Not financial advice \u2022 DYOR')
+        await ctx.send(embed=embed)
 bot.run(os.getenv('DISCORD_TOKEN'))
