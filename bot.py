@@ -690,10 +690,10 @@ async def help_command(ctx):
             '**!cw SYMBOL** \u2014 Weekly chart (1 year)\n'
             '**!cd SYMBOL** \u2014 Daily chart (3 months)\n'
             '**!ch SYMBOL** \u2014 Hourly chart (5 days)\n'
-            '**!cm1 SYMBOL** \u2014 1 min chart (today)\n'
-            '**!cm5 SYMBOL** \u2014 5 min chart (today)\n'
-            '**!cm15 SYMBOL** \u2014 15 min chart (today)\n'
-            '**!cm30 SYMBOL** \u2014 30 min chart (today)'
+            '**!c1m SYMBOL** \u2014 1 min chart (today)\n'
+            '**!c5m SYMBOL** \u2014 5 min chart (today)\n'
+            '**!c15m SYMBOL** \u2014 15 min chart (today)\n'
+            '**!c30m SYMBOL** \u2014 30 min chart (today)'
         ),
         inline=False
     )
@@ -704,10 +704,10 @@ async def help_command(ctx):
             '**!ccw SYMBOL** \u2014 Weekly chart (1 year)\n'
             '**!ccd SYMBOL** \u2014 Daily chart (3 months)\n'
             '**!cch SYMBOL** \u2014 Hourly chart (5 days)\n'
-            '**!cc1 SYMBOL** \u2014 1 min chart (today)\n'
-            '**!cc5 SYMBOL** \u2014 5 min chart (today)\n'
-            '**!cc15 SYMBOL** \u2014 15 min chart (today)\n'
-            '**!cc30 SYMBOL** \u2014 30 min chart (today)\n'
+            '**!cc1m SYMBOL** \u2014 1 min chart (today)\n'
+            '**!cc5m SYMBOL** \u2014 5 min chart (today)\n'
+            '**!cc15m SYMBOL** \u2014 15 min chart (today)\n'
+            '**!cc30m SYMBOL** \u2014 30 min chart (today)\n'
             '\nExamples: !cc BTC, !ccw ETH, !cch SOL'
         ),
         inline=False
@@ -863,19 +863,19 @@ async def _chart_minute(ctx, symbol, minutes):
     except Exception as e:
         await ctx.send(f"Error: {e}")
 
-@bot.command(name='cm1')
+@bot.command(name='c1m')
 async def chart_1min(ctx, symbol: str = 'AAPL'):
     await _chart_minute(ctx, symbol, 1)
 
-@bot.command(name='cm5')
+@bot.command(name='c5m')
 async def chart_5min(ctx, symbol: str = 'AAPL'):
     await _chart_minute(ctx, symbol, 5)
 
-@bot.command(name='cm15')
+@bot.command(name='c15m')
 async def chart_15min(ctx, symbol: str = 'AAPL'):
     await _chart_minute(ctx, symbol, 15)
 
-@bot.command(name='cm30')
+@bot.command(name='c30m')
 async def chart_30min(ctx, symbol: str = 'AAPL'):
     await _chart_minute(ctx, symbol, 30)
 
@@ -1001,19 +1001,19 @@ async def _crypto_chart_minute(ctx, symbol, minutes):
     except Exception as e:
         await ctx.send(f"Error: {e}")
 
-@bot.command(name='cc1')
+@bot.command(name='cc1m')
 async def crypto_1min(ctx, symbol: str = 'BTC'):
     await _crypto_chart_minute(ctx, symbol, 1)
 
-@bot.command(name='cc5')
+@bot.command(name='cc5m')
 async def crypto_5min(ctx, symbol: str = 'BTC'):
     await _crypto_chart_minute(ctx, symbol, 5)
 
-@bot.command(name='cc15')
+@bot.command(name='cc15m')
 async def crypto_15min(ctx, symbol: str = 'BTC'):
     await _crypto_chart_minute(ctx, symbol, 15)
 
-@bot.command(name='cc30')
+@bot.command(name='cc30m')
 async def crypto_30min(ctx, symbol: str = 'BTC'):
     await _crypto_chart_minute(ctx, symbol, 30)
 
@@ -1075,3 +1075,4 @@ async def ten_bagger(ctx):
         embed.set_footer(text='Updated: Feb 6, 2026 \u2022 Not financial advice \u2022 DYOR')
         await ctx.send(embed=embed)
 bot.run(os.getenv('DISCORD_TOKEN'))
+
