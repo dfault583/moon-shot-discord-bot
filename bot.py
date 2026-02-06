@@ -36,6 +36,49 @@ TV_BORDER = '#2a2e39'
 TV_VOL_UP = '#26a69a'
 TV_VOL_DOWN = '#ef5350'
 
+# Common crypto aliases
+CRYPTO_ALIASES = {
+    'BTC': 'BTC-USD', 'BITCOIN': 'BTC-USD',
+    'ETH': 'ETH-USD', 'ETHEREUM': 'ETH-USD',
+    'SOL': 'SOL-USD', 'SOLANA': 'SOL-USD',
+    'XRP': 'XRP-USD', 'RIPPLE': 'XRP-USD',
+    'DOGE': 'DOGE-USD', 'DOGECOIN': 'DOGE-USD',
+    'ADA': 'ADA-USD', 'CARDANO': 'ADA-USD',
+    'AVAX': 'AVAX-USD', 'AVALANCHE': 'AVAX-USD',
+    'DOT': 'DOT-USD', 'POLKADOT': 'DOT-USD',
+    'MATIC': 'MATIC-USD', 'POLYGON': 'MATIC-USD',
+    'LINK': 'LINK-USD', 'CHAINLINK': 'LINK-USD',
+    'SHIB': 'SHIB-USD',
+    'LTC': 'LTC-USD', 'LITECOIN': 'LTC-USD',
+    'UNI': 'UNI-USD', 'UNISWAP': 'UNI-USD',
+    'ATOM': 'ATOM-USD', 'COSMOS': 'ATOM-USD',
+    'XLM': 'XLM-USD', 'STELLAR': 'XLM-USD',
+    'ALGO': 'ALGO-USD', 'ALGORAND': 'ALGO-USD',
+    'NEAR': 'NEAR-USD',
+    'APT': 'APT-USD', 'APTOS': 'APT-USD',
+    'ARB': 'ARB-USD', 'ARBITRUM': 'ARB-USD',
+    'OP': 'OP-USD', 'OPTIMISM': 'OP-USD',
+    'SUI': 'SUI-USD',
+    'PEPE': 'PEPE-USD',
+    'WIF': 'WIF-USD',
+    'BONK': 'BONK-USD',
+    'RENDER': 'RENDER-USD',
+    'FET': 'FET-USD',
+    'INJ': 'INJ-USD', 'INJECTIVE': 'INJ-USD',
+    'TIA': 'TIA-USD', 'CELESTIA': 'TIA-USD',
+    'SEI': 'SEI-USD',
+    'JUP': 'JUP-USD', 'JUPITER': 'JUP-USD',
+}
+
+def resolve_crypto_symbol(symbol):
+    """Convert user input to yfinance crypto ticker format."""
+    symbol = symbol.upper().strip()
+    if symbol in CRYPTO_ALIASES:
+        return CRYPTO_ALIASES[symbol]
+    if symbol.endswith('-USD'):
+        return symbol
+    return f'{symbol}-USD'
+
 # Timeframe mappings for yfinance
 YF_INTERVALS = {
     'month': '1mo',
@@ -46,7 +89,7 @@ YF_INTERVALS = {
     '5min': '5m',
     '15min': '15m',
     '30min': '30m',
-}
+    }
 
 def get_bars_alpaca(symbol, timeframe, start_date, end_date):
     """Try to get data from Alpaca first."""
@@ -103,6 +146,14 @@ def get_bars(symbol, alpaca_tf, yf_interval, start_date, end_date, yf_period=Non
     if df is not None and len(df) > 0:
         return df, 'yfinance'
     return None, None
+
+def get_crypto_bars(symbol, yf_interval, period=None, start_date=None, end_date=None):
+    """Get crypto data from yfinance."""
+    ticker_symbol = resolve_crypto_symbol(symbol)
+    df = get_bars_yfinance(ticker_symbol, yf_interval, period=period, start_date=start_date, end_date=end_date)
+    if df is not None and len(df) > 0:
+        return df
+    return None
 
 def calculate_vwap(df):
     tp = (df['high'] + df['low'] + df['close']) / 3
@@ -173,7 +224,7 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
         pct_change = (change / prev_close) * 100
         sign = '+' if change >= 0 else ''
         src_tag = ' [YF]' if source == 'yfinance' else ''
-        title = f'{symbol} {timeframe}  {last_close:.2f}  {sign}{change:.2f} ({sign}{pct_change:.2f}%){src_tag}'
+        title = f'{symbol} {timeframe} {last_close:.2f} {sign}{change:.2f} ({sign}{pct_change:.2f}%){src_tag}'
 
         buf = io.BytesIO()
         fig, axes = mpf.plot(
@@ -224,11 +275,11 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
 async def help_command(ctx):
     embed = discord.Embed(
         title='Moon Shot Commands',
-        description='Stock charting bot powered by Alpaca + Yahoo Finance',
+        description='Stock & Crypto charting bot powered by Alpaca + Yahoo Finance',
         color=0x26a69a
     )
     embed.add_field(
-        name='Charts',
+        name='Stock Charts',
         value=(
             '**!cm SYMBOL** \u2014 Monthly chart (2 years)\n'
             '**!cw SYMBOL** \u2014 Weekly chart (1 year)\n'
@@ -242,16 +293,28 @@ async def help_command(ctx):
         inline=False
     )
     embed.add_field(
+        name='Crypto Charts',
+        value=(
+            '**!crypto SYMBOL** \u2014 Daily crypto chart (3 months)\n'
+            '**!cryptow SYMBOL** \u2014 Weekly crypto chart (1 year)\n'
+            '**!cryptom SYMBOL** \u2014 Monthly crypto chart (2 years)\n'
+            '**!cryptoh SYMBOL** \u2014 Hourly crypto chart (5 days)\n'
+            '**!crypto15 SYMBOL** \u2014 15 min crypto chart (1 day)\n'
+            '\nExamples: !crypto BTC, !cryptow ETH, !cryptoh SOL'
+        ),
+        inline=False
+    )
+    embed.add_field(
         name='Overlays',
         value='SMA 20 / 50 / 200 + VWAP',
         inline=False
     )
     embed.add_field(
         name='Data',
-        value='Supports NYSE, NASDAQ & OTC stocks. OTC tickers use Yahoo Finance as fallback.',
+        value='Stocks: NYSE, NASDAQ & OTC (Alpaca + Yahoo Finance)\nCrypto: BTC, ETH, SOL, XRP, DOGE, ADA, and 30+ more via Yahoo Finance',
         inline=False
     )
-    embed.set_footer(text='Default symbol: AAPL')
+    embed.set_footer(text='Default stock: AAPL | Default crypto: BTC')
     await ctx.send(embed=embed)
 
 @bot.command(name='cm')
@@ -390,6 +453,105 @@ async def chart_15min(ctx, symbol: str = 'AAPL'):
 @bot.command(name='cm30')
 async def chart_30min(ctx, symbol: str = 'AAPL'):
     await _chart_minute(ctx, symbol, 30)
+
+# ============================================================
+# CRYPTO COMMANDS
+# ============================================================
+
+@bot.command(name='crypto')
+async def crypto_daily(ctx, symbol: str = 'BTC'):
+    """Daily crypto chart (3 months)."""
+    try:
+        ticker = resolve_crypto_symbol(symbol)
+        display_name = ticker.replace('-USD', '')
+        await ctx.send(f"Generating daily chart for {display_name}...")
+        df = get_crypto_bars(symbol, '1d', period='3mo')
+        if df is None:
+            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
+            return
+        buf = make_chart(df, display_name, '1D', display_count=65, source='yfinance')
+        if buf is None:
+            await ctx.send(f"Could not generate chart for {display_name}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{display_name}_crypto_daily.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
+
+@bot.command(name='cryptow')
+async def crypto_weekly(ctx, symbol: str = 'BTC'):
+    """Weekly crypto chart (1 year)."""
+    try:
+        ticker = resolve_crypto_symbol(symbol)
+        display_name = ticker.replace('-USD', '')
+        await ctx.send(f"Generating weekly chart for {display_name}...")
+        df = get_crypto_bars(symbol, '1wk', period='1y')
+        if df is None:
+            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
+            return
+        buf = make_chart(df, display_name, '1W', display_count=52, source='yfinance')
+        if buf is None:
+            await ctx.send(f"Could not generate chart for {display_name}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{display_name}_crypto_weekly.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
+
+@bot.command(name='cryptom')
+async def crypto_monthly(ctx, symbol: str = 'BTC'):
+    """Monthly crypto chart (2 years)."""
+    try:
+        ticker = resolve_crypto_symbol(symbol)
+        display_name = ticker.replace('-USD', '')
+        await ctx.send(f"Generating monthly chart for {display_name}...")
+        df = get_crypto_bars(symbol, '1mo', period='2y')
+        if df is None:
+            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
+            return
+        buf = make_chart(df, display_name, '1M', source='yfinance')
+        if buf is None:
+            await ctx.send(f"Could not generate chart for {display_name}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{display_name}_crypto_monthly.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
+
+@bot.command(name='cryptoh')
+async def crypto_hourly(ctx, symbol: str = 'BTC'):
+    """Hourly crypto chart (5 days)."""
+    try:
+        ticker = resolve_crypto_symbol(symbol)
+        display_name = ticker.replace('-USD', '')
+        await ctx.send(f"Generating hourly chart for {display_name}...")
+        df = get_crypto_bars(symbol, '1h', period='5d')
+        if df is None:
+            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
+            return
+        buf = make_chart(df, display_name, '1H', display_count=60, source='yfinance')
+        if buf is None:
+            await ctx.send(f"Could not generate chart for {display_name}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{display_name}_crypto_hourly.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
+
+@bot.command(name='crypto15')
+async def crypto_15min(ctx, symbol: str = 'BTC'):
+    """15 min crypto chart (1 day)."""
+    try:
+        ticker = resolve_crypto_symbol(symbol)
+        display_name = ticker.replace('-USD', '')
+        await ctx.send(f"Generating 15min chart for {display_name}...")
+        df = get_crypto_bars(symbol, '15m', period='1d')
+        if df is None:
+            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
+            return
+        buf = make_chart(df, display_name, '15m', source='yfinance')
+        if buf is None:
+            await ctx.send(f"Could not generate chart for {display_name}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{display_name}_crypto_15min.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
 
 @bot.event
 async def on_ready():
