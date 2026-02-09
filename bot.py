@@ -7,7 +7,7 @@ import mplfinance as mpf
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
-from matplotlib.lines import Line2D
+from matplotlib.lines import Line2Dh
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.gridspec as gridspec
 import yfinance as yf
@@ -1032,47 +1032,47 @@ async def ten_bagger(ctx):
                     title='\U0001f680 10-Bagger Option Play \U0001f680',
                     description='High-risk, high-reward option trade pick. **This is NOT financial advice. Do your own research.**',
                     color=0xffeb3b
+                )
+        embed.add_field(
+                name='\U0001f4c8 Trade Setup',
+                value=(
+                        '**Ticker:** APP (AppLovin)\n'
+                        '**Contract:** $600 Call\n'
+                        '**Expiration:** Feb 20, 2026\n'
+                        '**Entry Price:** ~$4.50\n'
+                        '**Type:** OTM Call (~30% out of the money)'
+                ),
+                inline=False
         )
         embed.add_field(
-                    name='\U0001f4c8 Trade Setup',
-                    value=(
-                                    '**Ticker:** NVDA (NVIDIA)\n'
-                                    '**Contract:** $200 Call\n'
-                                    '**Expiration:** Feb 20, 2026\n'
-                                    '**Entry Price:** ~$0.96\n'
-                                    '**Type:** OTM Call (~8.3% out of the money)'
-                    ),
-                    inline=False
+                name='\U0001f3af Why This Trade',
+                value=(
+                        '\u2022 APP surging +13% today ahead of Q4 earnings Feb 11 AMC\n'
+                        '\u2022 EPS estimate $2.95 \u2014 APP has consistently crushed earnings\n'
+                        '\u2022 Stock was $745 in Dec, crashed on DeepSeek fears to $400s\n'
+                        '\u2022 AI ad-tech momentum accelerating, analysts avg target $722\n'
+                        '\u2022 Massive open interest: 2,550 contracts at $600 strike\n'
+                        '\u2022 Previous earnings saw 50%+ single-day moves'
+                ),
+                inline=False
         )
         embed.add_field(
-                    name='\U0001f3af Why This Trade',
-                    value=(
-                                    '\u2022 NVDA surging +7.5% today on AI spending momentum\n'
-                                    '\u2022 Jensen Huang says AI buildout demand is "sky high"\n'
-                                    '\u2022 Big Tech committed $650B+ in AI capex for 2026\n'
-                                    '\u2022 Massive open interest: 97,876 contracts at this strike\n'
-                                    '\u2022 NVDA 195/205 call spread saw 10,262 contracts today\n'
-                                    '\u2022 Only needs ~8% move to go ITM in 2 weeks'
-                    ),
-                    inline=False
+                name='\U0001f4b0 Risk/Reward',
+                value=(
+                        '**Max Loss:** Premium paid (~$450 per contract)\n'
+                        '**Break Even:** $604.50 at expiration\n'
+                        '**10x Target:** APP hits ~$645 by Feb 20\n'
+                        '**Reward if APP hits $700:** ~$95.50 per contract (21x)\n'
+                        '**Probability:** Low \u2014 this is a lottery ticket \U0001f3b0'
+                ),
+                inline=False
         )
         embed.add_field(
-                    name='\U0001f4b0 Risk/Reward',
-                    value=(
-                                    '**Max Loss:** Premium paid (~$96 per contract)\n'
-                                    '**Break Even:** $200.96 at expiration\n'
-                                    '**10x Target:** NVDA hits ~$210 by Feb 20\n'
-                                    '**Reward if NVDA hits $215:** ~$14.04 per contract (14.6x)\n'
-                                    '**Probability:** Low \u2014 this is a lottery ticket \U0001f3b0'
-                    ),
-                    inline=False
+                name='\u26a0\ufe0f Risk Level',
+                value='**EXTREME** \u2014 OTM options expire worthless most of the time. Only play with money you can afford to lose entirely.',
+                inline=False
         )
-        embed.add_field(
-                    name='\u26a0\ufe0f Risk Level',
-                    value='**EXTREME** \u2014 OTM options expire worthless most of the time. Only play with money you can afford to lose entirely.',
-                    inline=False
-        )
-        embed.set_footer(text='Updated: Feb 6, 2026 \u2022 Not financial advice \u2022 DYOR')
+        embed.set_footer(text='Updated: Feb 9, 2026 \u2022 Not financial advice \u2022 DYOR')
         await ctx.send(embed=embed)
 bot.run(os.getenv('DISCORD_TOKEN'))
 
