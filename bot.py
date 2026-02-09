@@ -733,7 +733,7 @@ async def help_command(ctx):
     )
     embed.add_field(
         name='Options',
-        value='**!10bagger** \u2014 Current high-risk/high-reward option trade pick',
+        value='**!10bagger** \u2014 Current high-risk/high-reward option trade pick\n**!retardspecial** \u2014 The most degenerate trade imaginable',
         inline=False
     )
     embed.set_footer(text='Default stock: AAPL | Default crypto: BTC')
@@ -1073,6 +1073,59 @@ async def ten_bagger(ctx):
                 inline=False
         )
         embed.set_footer(text='Updated: Feb 9, 2026 \u2022 Not financial advice \u2022 DYOR')
+        await ctx.send(embed=embed)
+
+# RETARD SPECIAL COMMAND
+# ============================================================
+@bot.command(name='retardspecial')
+async def retard_special(ctx):
+        """The most degenerate option trade imaginable."""
+        embed = discord.Embed(
+                    title='\U0001f921 Retard Special \U0001f921',
+                    description='The absolute most degenerate trade possible. **This is NOT financial advice. This is financial self-harm.**',
+                    color=0xff0000
+                )
+        embed.add_field(
+                name='\U0001f4a5 The Play',
+                value=(
+                        '**Ticker:** HIMS (Hims & Hers Health)\n'
+                        '**Contract:** $30 Call\n'
+                        '**Expiration:** Feb 20, 2026\n'
+                        '**Entry Price:** ~$0.05\n'
+                        '**Type:** Deep OTM Call (~70% out of the money)\n'
+                        '**Cost:** $5 per contract. Five. Dollars.'
+                ),
+                inline=False
+        )
+        embed.add_field(
+                name='\U0001f4a8 Why This Is Insane',
+                value=(
+                        '\u2022 HIMS just crashed 23% today \u2014 Novo Nordisk sued them over weight-loss drugs\n'
+                        '\u2022 Stock went from $23 to $17.70 in one day\n'
+                        '\u2022 Needs a 70% bounce to $30 in 11 days to be worth ANYTHING\n'
+                        '\u2022 This is catching a falling knife... with your teeth\n'
+                        '\u2022 52-week high was $73 so $30 is technically possible... technically'
+                ),
+                inline=False
+        )
+        embed.add_field(
+                name='\U0001f911 Degen Math',
+                value=(
+                        '\u2022 Entry: ~$0.05/contract ($5 per contract)\n'
+                        '\u2022 Breakeven: HIMS hits $30.05 by Feb 20 (lol)\n'
+                        '\u2022 **If HIMS bounces to $35:** $5.00/contract = 100x \U0001f680\n'
+                        '\u2022 **If HIMS bounces to $40:** $10.00/contract = 200x \U0001f680\U0001f680\n'
+                        '\u2022 **Probability of profit:** Approximately zero\n'
+                        '\u2022 Open Interest: 1,297 \u2014 you are not alone in your delusion'
+                ),
+                inline=False
+        )
+        embed.add_field(
+                name='\u2622\ufe0f Risk Level',
+                value='**BEYOND EXTREME** \u2014 This will almost certainly expire worthless. You are literally lighting money on fire. But it\'s only $5 so who cares.',
+                inline=False
+        )
+        embed.set_footer(text='Updated: Feb 9, 2026 \u2022 Not financial advice \u2022 Pure degeneracy \u2022 DYOR')
         await ctx.send(embed=embed)
 bot.run(os.getenv('DISCORD_TOKEN'))
 
