@@ -1037,21 +1037,21 @@ async def ten_bagger(ctx):
                 name='\U0001f4c8 Trade Setup',
                 value=(
                         '**Ticker:** APP (AppLovin)\n'
-                        '**Contract:** $600 Call\n'
+                        '**Contract:** $700 Call\n'
                         '**Expiration:** Feb 20, 2026\n'
-                        '**Entry Price:** ~$4.50\n'
-                        '**Type:** OTM Call (~30% out of the money)'
+                        '**Entry Price:** ~$1.35\n'
+                        '**Type:** OTM Call (~50% out of the money)'
                 ),
                 inline=False
         )
         embed.add_field(
                 name='\U0001f3af Why This Trade',
                 value=(
-                        '\u2022 APP surging +13% today ahead of Q4 earnings Feb 11 AMC\n'
+                        '\u2022 APP surging +14% today ahead of Q4 earnings Feb 11 AMC\n'
                         '\u2022 EPS estimate $2.95 \u2014 APP has consistently crushed earnings\n'
                         '\u2022 Stock was $745 in Dec, crashed on DeepSeek fears to $400s\n'
                         '\u2022 AI ad-tech momentum accelerating, analysts avg target $722\n'
-                        '\u2022 Massive open interest: 2,550 contracts at $600 strike\n'
+                        '\u2022 Strong open interest: 1,023 contracts at $700 strike\n'
                         '\u2022 Previous earnings saw 50%+ single-day moves'
                 ),
                 inline=False
@@ -1059,10 +1059,10 @@ async def ten_bagger(ctx):
         embed.add_field(
                 name='\U0001f4b0 Risk/Reward',
                 value=(
-                        '**Max Loss:** Premium paid (~$450 per contract)\n'
-                        '**Break Even:** $604.50 at expiration\n'
-                        '**10x Target:** APP hits ~$645 by Feb 20\n'
-                        '**Reward if APP hits $700:** ~$95.50 per contract (21x)\n'
+                        '**Max Loss:** Premium paid (~$135 per contract)\n'
+                        '**Break Even:** $701.35 at expiration\n'
+                        '**10x Target:** APP hits ~$714 by Feb 20\n'
+                        '**Reward if APP hits $745:** ~$43.65 per contract (32x)\n'
                         '**Probability:** Low \u2014 this is a lottery ticket \U0001f3b0'
                 ),
                 inline=False
