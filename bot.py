@@ -7,7 +7,7 @@ import mplfinance as mpf
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
-from matplotlib.lines import Line2Dh
+from matplotlib.lines import Line2D
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.gridspec as gridspec
 import yfinance as yf
