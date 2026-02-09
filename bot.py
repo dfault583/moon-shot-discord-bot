@@ -1036,34 +1036,34 @@ async def ten_bagger(ctx):
         embed.add_field(
                 name='\U0001f4c8 Trade Setup',
                 value=(
-                        '**Ticker:** APP (AppLovin)\n'
-                        '**Contract:** $700 Call\n'
+                        '**Ticker:** LUNR (Intuitive Machines)\n'
+                        '**Contract:** $25 Call\n'
                         '**Expiration:** Feb 20, 2026\n'
-                        '**Entry Price:** ~$1.35\n'
-                        '**Type:** OTM Call (~50% out of the money)'
+                        '**Entry Price:** ~$0.48\n'
+                        '**Type:** OTM Call (~26% out of the money)'
                 ),
                 inline=False
         )
         embed.add_field(
                 name='\U0001f3af Why This Trade',
                 value=(
-                        '\u2022 APP surging +14% today ahead of Q4 earnings Feb 11 AMC\n'
-                        '\u2022 EPS estimate $2.95 \u2014 APP has consistently crushed earnings\n'
-                        '\u2022 Stock was $745 in Dec, crashed on DeepSeek fears to $400s\n'
-                        '\u2022 AI ad-tech momentum accelerating, analysts avg target $722\n'
-                        '\u2022 Strong open interest: 1,023 contracts at $700 strike\n'
-                        '\u2022 Previous earnings saw 50%+ single-day moves'
+                        '\u2022 Space sector on fire \u2014 SpaceX/xAI merger valued at $1.25T fueling sector momentum\n'
+                        '\u2022 LUNR up 13% today, 22% YTD \u2014 strong bullish breakout\n'
+                        '\u2022 Analyst PT raised to $26 (Keybanc Overweight) \u2014 $25 strike sits right at target\n'
+                        '\u2022 NASA Artemis contracts + Lanteris acquisition expanding lunar economy footprint\n'
+                        '\u2022 52-week high $23.32 \u2014 breakout above could trigger gamma squeeze to $30+'
                 ),
                 inline=False
         )
         embed.add_field(
-                name='\U0001f4b0 Risk/Reward',
+                name='\U0001f4b0 10-Bagger Math',
                 value=(
-                        '**Max Loss:** Premium paid (~$135 per contract)\n'
-                        '**Break Even:** $701.35 at expiration\n'
-                        '**10x Target:** APP hits ~$714 by Feb 20\n'
-                        '**Reward if APP hits $745:** ~$43.65 per contract (32x)\n'
-                        '**Probability:** Low \u2014 this is a lottery ticket \U0001f3b0'
+                        '\u2022 Entry: ~$0.48/contract ($48 per contract)\n'
+                        '\u2022 Breakeven: LUNR hits $25.48 by Feb 20\n'
+                        '\u2022 **10x Target:** LUNR hits ~$30 \u2192 call worth ~$5.00 (10.4x)\n'
+                        '\u2022 **If LUNR hits $35:** call worth ~$10.00 (20.8x)\n'
+                        '\u2022 Open Interest: 3,006 \u2014 solid liquidity\n'
+                        '\u2022 Ultra-cheap lottery ticket \U0001f3b0'
                 ),
                 inline=False
         )
