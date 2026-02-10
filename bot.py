@@ -475,15 +475,9 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
         df['SMA200'] = df['close'].rolling(window=200).mean()
         df['VWAP'] = calculate_vwap(df)
         
-        # Calculate B4-style indicators
-        b4 = calculate_b4_signals(df)
-
-        # Trim to display window AFTER calculating indicators
+        # Trim to display window
         if display_count and len(df) > display_count:
             df = df.iloc[-display_count:]
-            for key in b4:
-                if isinstance(b4[key], pd.Series):
-                    b4[key] = b4[key].iloc[-display_count:]
 
         # === Main chart addplots ===
         plots = []
@@ -503,65 +497,6 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             legend_items.append(('VWAP', '#ffeb3b', '--'))
 
         # Buy/Sell markers on main chart
-        buy_markers = pd.Series(np.nan, index=df.index)
-        sell_markers = pd.Series(np.nan, index=df.index)
-        buy_mask = b4['buy']
-        sell_mask = b4['sell']
-        if buy_mask.any():
-            buy_markers[buy_mask] = df['low'][buy_mask] * 0.998
-            plots.append(mpf.make_addplot(buy_markers, type='scatter', marker='^', markersize=80, color='#00e676', panel=0))
-        if sell_mask.any():
-            sell_markers[sell_mask] = df['high'][sell_mask] * 1.002
-            plots.append(mpf.make_addplot(sell_markers, type='scatter', marker='v', markersize=80, color='#ff1744', panel=0))
-
-        # === B4 Indicator Panel (panel 2) ===
-        # SuperTrend bands in B4 panel
-        for band_key, dir_key, lbl, w in [('st_upper', 'dir_upper', 'ST Upper', 1.0),
-                                            ('st_mid', 'dir_mid', 'ST Mid', 1.5),
-                                            ('st_lower', 'dir_lower', 'ST Lower', 1.0)]:
-            st_line = b4[band_key].copy()
-            st_dir = b4[dir_key].copy()
-            st_bull = st_line.copy()
-            st_bear = st_line.copy()
-            st_bull[st_dir != 1] = np.nan
-            st_bear[st_dir != -1] = np.nan
-            if st_bull.notna().any():
-                plots.append(mpf.make_addplot(st_bull, color='#00e676', width=w, panel=2))
-            if st_bear.notna().any():
-                plots.append(mpf.make_addplot(st_bear, color='#ff1744', width=w, panel=2))
-
-        legend_items.append(('ST Bull', '#00e676', '-'))
-        legend_items.append(('ST Bear', '#ff1744', '-'))
-
-        # Squeeze Momentum
-        mom = b4['squeeze_momentum']
-        sq_on = b4['squeeze_on']
-        
-        # Color momentum bars: green if rising, red if falling
-        mom_colors = []
-        for i in range(len(mom)):
-            if pd.isna(mom.iloc[i]):
-                mom_colors.append('#333333')
-            elif i > 0 and mom.iloc[i] > mom.iloc[i-1]:
-                if mom.iloc[i] >= 0:
-                    mom_colors.append('#00e676')
-                else:
-                    mom_colors.append('#26a69a')
-            else:
-                if mom.iloc[i] <= 0:
-                    mom_colors.append('#ff1744')
-                else:
-                    mom_colors.append('#ef5350')
-        
-        mom_filled = mom.fillna(0)
-        plots.append(mpf.make_addplot(mom_filled, type='bar', color=mom_colors, panel=2, ylabel='B4'))
-
-        # Squeeze dots on zero line
-        squeeze_dots = pd.Series(0.0, index=df.index)
-        plots.append(mpf.make_addplot(squeeze_dots, type='scatter', marker='o', markersize=8,
-                                       color=['#ffeb3b' if sq else '#666666' for sq in sq_on],
-                                       panel=2))
-
         # === Chart Style ===
         mc = mpf.make_marketcolors(
             up=TV_CANDLE_UP, down=TV_CANDLE_DOWN,
@@ -609,38 +544,13 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             df, type='candle', style=s, volume=True,
             addplot=plots if plots else None,
             figsize=(14, 9), tight_layout=False,
-            scale_padding={'left': 0.05, 'top': 0.6, 'right': 1.0, 'bottom': 0.5},
+            scale_padding={'left': 0.05, 'top': 1.2, 'right': 1.0, 'bottom': 0.8},
             returnfig=True,
             volume_panel=1,
-            panel_ratios=(4, 1, 2)
+            panel_ratios=(4, 1)
         )
 
         fig.suptitle(title, color=TV_TEXT, fontsize=13, fontweight='bold', x=0.08, ha='left')
-
-        # B4 status labels
-        trend = b4['trend_dir'].iloc[-1]
-        trend_label = 'Bullish' if trend == 1 else 'Bearish'
-        trend_color = '#00e676' if trend == 1 else '#ff1744'
-        
-        div_val = b4['divergence'].iloc[-1] if b4['divergence'].notna().any() else 0
-        div_label = 'Bullish' if div_val == 1 else ('Bearish' if div_val == -1 else 'None')
-        div_color = '#00e676' if div_val == 1 else ('#ff1744' if div_val == -1 else '#888888')
-        
-        sq_val = b4['squeeze_on'].iloc[-1] if b4['squeeze_on'].notna().any() else False
-        sq_label = 'Yes' if sq_val else 'No'
-        sq_color = '#ffeb3b' if sq_val else '#888888'
-
-        # Add status text to the B4 panel
-        b4_ax = axes[4] if len(axes) > 4 else axes[-1]
-        b4_ax.text(0.98, 0.92, f'Trend: {trend_label}', transform=b4_ax.transAxes,
-                   fontsize=7, color=trend_color, ha='right', va='top',
-                   bbox=dict(boxstyle='round,pad=0.2', facecolor=TV_BG, edgecolor=TV_BORDER, alpha=0.9))
-        b4_ax.text(0.98, 0.72, f'Divergence: {div_label}', transform=b4_ax.transAxes,
-                   fontsize=7, color=div_color, ha='right', va='top',
-                   bbox=dict(boxstyle='round,pad=0.2', facecolor=TV_BG, edgecolor=TV_BORDER, alpha=0.9))
-        b4_ax.text(0.98, 0.52, f'Squeeze: {sq_label}', transform=b4_ax.transAxes,
-                   fontsize=7, color=sq_color, ha='right', va='top',
-                   bbox=dict(boxstyle='round,pad=0.2', facecolor=TV_BG, edgecolor=TV_BORDER, alpha=0.9))
 
         # Add indicator legend
         if legend_items:
