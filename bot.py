@@ -715,7 +715,7 @@ async def help_command(ctx):
     embed.add_field(
         name='Price Check',
         value=(
-            '**!p SYMBOL** \u2014 Quick price check (stocks & crypto)\n'
+            '**!p / !price SYMBOL** \u2014 Quick price check (stocks & crypto)\n'
             'Shows current price, change, pre-market/after-hours data\n'
             'Example: !p AAPL, !p BTC, !p TSLA'
         ),
@@ -884,7 +884,7 @@ async def chart_30min(ctx, symbol: str = 'AAPL'):
 # PRICE COMMAND
 # ============================================================
 
-@bot.command(name='p')
+@bot.command(name='p', aliases=['price'])
 async def price_check(ctx, symbol: str = 'AAPL'):
     """Quick price check for stocks and crypto."""
     try:
