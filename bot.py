@@ -822,7 +822,7 @@ async def help_command(ctx):
     )
     embed.add_field(
         name='Options',
-        value='**!10bagger** \u2014 Current high-risk/high-reward option trade pick\n**!retardspecial** \u2014 The most degenerate trade imaginable',
+        value='**!10bagger** \u2014 Current high-risk/high-reward option trade pick\n**!retardspecial** \u2014 The most degenerate trade imaginable\n**!JOINIS** \u2014 Top 3 highest probability call plays (Unusual Whales flow)',
         inline=False
     )
     embed.set_footer(text='Default stock: AAPL | Default crypto: BTC')
@@ -1331,5 +1331,68 @@ async def retard_special(ctx):
         )
         embed.set_footer(text='Updated: Feb 9, 2026 \u2022 Not financial advice \u2022 Pure degeneracy \u2022 DYOR')
         await ctx.send(embed=embed)
+# ============================================================
+# JOINIS COMMAND - Highest Probability Plays (Unusual Whales Flow)
+# ============================================================
+@bot.command(name='JOINIS', aliases=['joinis'])
+async def joinis(ctx):
+    """Top 3 highest probability single-leg call trades from UW flow."""
+    embed = discord.Embed(
+        title='\U0001f3af JOINIS \u2014 Top 3 High Probability Calls \U0001f3af',
+        description='Highest conviction single-leg call plays sourced from Unusual Whales flow data. **This is NOT financial advice. Do your own research.**',
+        color=0x26a69a
+    )
+
+    # Trade 1: XOM
+    embed.add_field(
+        name='\U0001f7e2 #1 \u2014 XOM (Exxon Mobil) $170C 03/20',
+        value=(
+            '**Entry:** ~$0.64 ($64/contract)\n'
+            '**DTE:** 38 days \u2022 **Stock:** $151.50\n'
+            '**UW Signal:** 1,985 contracts bought on ask \u2022 $127K premium\n'
+            '**Flow Context:** $81M call premium vs $6.7M put premium \u2022 P/C ratio 0.20\n'
+            '**Thesis:** At 52-week high, energy sector strength, no earnings until 5/1\n'
+            '**Breakeven:** XOM hits $170.64 (+12.6%) by Mar 20'
+        ),
+        inline=False
+    )
+
+    # Trade 2: CMCSA
+    embed.add_field(
+        name='\U0001f7e2 #2 \u2014 CMCSA (Comcast) $33C 03/27',
+        value=(
+            '**Entry:** ~$0.66 ($66/contract)\n'
+            '**DTE:** 45 days \u2022 **Stock:** $31.60\n'
+            '**UW Signal:** 1,164 contracts bought on ask \u2022 $77K premium\n'
+            '**Flow Context:** $1.51M call premium \u2022 P/C ratio 0.30 \u2022 Opening trade\n'
+            '**Thesis:** Slightly OTM, high volume accumulation, no earnings until 4/23\n'
+            '**Breakeven:** CMCSA hits $33.66 (+6.5%) by Mar 27'
+        ),
+        inline=False
+    )
+
+    # Trade 3: GD
+    embed.add_field(
+        name='\U0001f7e2 #3 \u2014 GD (General Dynamics) $400C 03/20',
+        value=(
+            '**Entry:** ~$1.40 ($140/contract)\n'
+            '**DTE:** 38 days \u2022 **Stock:** $360.02\n'
+            '**UW Signal:** 400 contracts floor trade on ask \u2022 $56K premium\n'
+            '**Flow Context:** $1.75M call premium \u2022 P/C ratio 0.23 \u2022 Floor trade\n'
+            '**Thesis:** Defense sector near 52W highs, institutional floor buying, no earnings until 4/22\n'
+            '**Breakeven:** GD hits $401.40 (+11.5%) by Mar 20'
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name='\u26a0\ufe0f Risk',
+        value='All plays are OTM calls that can expire worthless. Only trade with money you can afford to lose. These are based on unusual options flow, not guaranteed outcomes.',
+        inline=False
+    )
+
+    embed.set_footer(text='Updated: Feb 10, 2026 \u2022 Source: Unusual Whales Flow \u2022 Not financial advice \u2022 DYOR')
+    await ctx.send(embed=embed)
+
 bot.run(os.getenv('DISCORD_TOKEN'))
 
