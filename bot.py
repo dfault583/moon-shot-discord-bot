@@ -375,9 +375,38 @@ def _build_price_embed(ticker, symbol, is_crypto=False):
         traceback.print_exc()
         return None
 
-def calculate_vwap(df):
+def calculate_vwap(df, band_mult=1.0):
+    """Calculate VWAP with standard deviation bands, session-anchored."""
     tp = (df['high'] + df['low'] + df['close']) / 3
-    return (tp * df['volume']).cumsum() / df['volume'].cumsum()
+    # Detect session boundaries (new day)
+    dates = df.index.date if hasattr(df.index, 'date') else pd.Series(df.index).dt.date.values
+    vwap = pd.Series(np.nan, index=df.index)
+    upper_band = pd.Series(np.nan, index=df.index)
+    lower_band = pd.Series(np.nan, index=df.index)
+    cum_vol = 0.0
+    cum_tp_vol = 0.0
+    cum_tp2_vol = 0.0
+    prev_date = None
+    for i in range(len(df)):
+        cur_date = dates[i]
+        if prev_date is None or cur_date != prev_date:
+            cum_vol = 0.0
+            cum_tp_vol = 0.0
+            cum_tp2_vol = 0.0
+        v = df['volume'].iloc[i]
+        t = tp.iloc[i]
+        cum_vol += v
+        cum_tp_vol += t * v
+        cum_tp2_vol += t * t * v
+        if cum_vol > 0:
+            vwap_val = cum_tp_vol / cum_vol
+            vwap.iloc[i] = vwap_val
+            variance = (cum_tp2_vol / cum_vol) - (vwap_val * vwap_val)
+            stdev = np.sqrt(max(variance, 0))
+            upper_band.iloc[i] = vwap_val + band_mult * stdev
+            lower_band.iloc[i] = vwap_val - band_mult * stdev
+        prev_date = cur_date
+    return vwap, upper_band, lower_band
 
 
 def calculate_true_range(df):
@@ -592,7 +621,7 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
         df['SMA20'] = df['close'].rolling(window=20).mean()
         df['SMA50'] = df['close'].rolling(window=50).mean()
         df['SMA200'] = df['close'].rolling(window=200).mean()
-        df['VWAP'] = calculate_vwap(df)
+        df['VWAP'], df['VWAP_UPPER'], df['VWAP_LOWER'] = calculate_vwap(df, band_mult=1.0)
         
         # Trim to display window
         if display_count and len(df) > display_count:
@@ -603,8 +632,8 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
         legend_items = []
 
         if df['SMA20'].notna().any():
-            plots.append(mpf.make_addplot(df['SMA20'], color='#2962ff', width=1.0, panel=0))
-            legend_items.append(('SMA 20', '#2962ff', '-'))
+            plots.append(mpf.make_addplot(df['SMA20'], color='#00bcd4', width=1.0, panel=0))
+            legend_items.append(('SMA 20', '#00bcd4', '-'))
         if df['SMA50'].notna().any():
             plots.append(mpf.make_addplot(df['SMA50'], color='#ff6d00', width=1.0, panel=0))
             legend_items.append(('SMA 50', '#ff6d00', '-'))
@@ -612,8 +641,12 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             plots.append(mpf.make_addplot(df['SMA200'], color='#ab47bc', width=1.2, panel=0))
             legend_items.append(('SMA 200', '#ab47bc', '-'))
         if df['VWAP'].notna().any():
-            plots.append(mpf.make_addplot(df['VWAP'], color='#ffeb3b', width=1, linestyle='--', panel=0))
-            legend_items.append(('VWAP', '#ffeb3b', '--'))
+            plots.append(mpf.make_addplot(df['VWAP'], color='#2962ff', width=1.2, panel=0))
+            legend_items.append(('VWAP', '#2962ff', '-'))
+        if df['VWAP_UPPER'].notna().any():
+            plots.append(mpf.make_addplot(df['VWAP_UPPER'], color='#26a69a', width=0.8, linestyle='--', panel=0))
+            plots.append(mpf.make_addplot(df['VWAP_LOWER'], color='#26a69a', width=0.8, linestyle='--', panel=0))
+            legend_items.append(('VWAP Bands', '#26a69a', '--'))
 
         # Buy/Sell markers on main chart
         # === Chart Style ===
@@ -701,7 +734,17 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             for spine in ax.spines.values():
                 spine.set_color(TV_BORDER)
 
-        # === Volume Profile (overlay using blended transform) ===
+        # === VWAP Band Fill ===
+        if df['VWAP_UPPER'].notna().any() and df['VWAP_LOWER'].notna().any():
+            price_ax = axes[0]
+            x_range = range(len(df))
+            upper_vals = df['VWAP_UPPER'].values
+            lower_vals = df['VWAP_LOWER'].values
+            price_ax.fill_between(x_range, lower_vals, upper_vals,
+                                  where=~np.isnan(upper_vals) & ~np.isnan(lower_vals),
+                                  color='#26a69a', alpha=0.08, zorder=1)
+
+                # === Volume Profile (overlay using blended transform) ===
         vp = calculate_volume_profile(df, num_bins=80)
         if vp is not None:
             from matplotlib.transforms import blended_transform_factory
@@ -819,7 +862,7 @@ async def help_command(ctx):
     )
     embed.add_field(
         name='Overlays',
-        value='SMA 20 / 50 / 200 + VWAP + Volume Profile (POC, Value Area)',
+        value='SMA 20 / 50 / 200 + VWAP with Bands (1σ) + Volume Profile (POC, Value Area)',
         inline=False
     )
     embed.add_field(
