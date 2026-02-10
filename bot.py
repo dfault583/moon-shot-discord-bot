@@ -463,6 +463,61 @@ def calculate_b4_signals(df):
         'trend_dir': trend_dir,
     }
 
+def calculate_volume_profile(df, num_bins=100):
+    """Calculate volume profile: volume distribution at each price level."""
+    price_min = df['low'].min()
+    price_max = df['high'].max()
+    price_range = price_max - price_min
+    if price_range <= 0:
+        return None
+    bin_size = price_range / num_bins
+    bins = np.zeros(num_bins)
+    for i in range(len(df)):
+        bar_low = df['low'].iloc[i]
+        bar_high = df['high'].iloc[i]
+        bar_vol = df['volume'].iloc[i]
+        is_up = df['close'].iloc[i] >= df['open'].iloc[i]
+        low_bin = max(0, int((bar_low - price_min) / bin_size))
+        high_bin = min(num_bins - 1, int((bar_high - price_min) / bin_size))
+        num_touched = high_bin - low_bin + 1
+        if num_touched > 0:
+            vol_per_bin = bar_vol / num_touched
+            for b in range(low_bin, high_bin + 1):
+                bins[b] += vol_per_bin
+    # Calculate value area (68% of total volume around POC)
+    poc_idx = np.argmax(bins)
+    total_vol = bins.sum()
+    va_target = total_vol * 0.68
+    va_sum = bins[poc_idx]
+    va_low_idx = poc_idx
+    va_high_idx = poc_idx
+    while va_sum < va_target:
+        up_vol = bins[va_high_idx + 1] if va_high_idx < num_bins - 1 else 0
+        dn_vol = bins[va_low_idx - 1] if va_low_idx > 0 else 0
+        if up_vol == 0 and dn_vol == 0:
+            break
+        if up_vol >= dn_vol:
+            va_high_idx += 1
+            va_sum += up_vol
+        else:
+            va_low_idx -= 1
+            va_sum += dn_vol
+    price_levels = np.array([price_min + (i + 0.5) * bin_size for i in range(num_bins)])
+    poc_price = price_levels[poc_idx]
+    vah_price = price_levels[va_high_idx]
+    val_price = price_levels[va_low_idx]
+    return {
+        'bins': bins,
+        'price_levels': price_levels,
+        'poc_idx': poc_idx,
+        'poc_price': poc_price,
+        'vah_price': vah_price,
+        'val_price': val_price,
+        'va_low_idx': va_low_idx,
+        'va_high_idx': va_high_idx,
+        'max_vol': bins.max(),
+    }
+
 def make_chart(df, symbol, timeframe, display_count=None, source=None):
     try:
         if len(df) < 2:
@@ -575,6 +630,50 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             for spine in ax.spines.values():
                 spine.set_color(TV_BORDER)
 
+        # === Volume Profile ===
+        vp = calculate_volume_profile(df, num_bins=80)
+        if vp is not None:
+            price_ax = axes[0]
+            max_vol = vp['max_vol']
+            # Scale VP bars to ~20% of chart width
+            x_min, x_max = price_ax.get_xlim()
+            chart_width = x_max - x_min
+            vp_width = chart_width * 0.20
+            for i in range(len(vp['bins'])):
+                vol = vp['bins'][i]
+                if vol <= 0:
+                    continue
+                bar_width = (vol / max_vol) * vp_width
+                y = vp['price_levels'][i]
+                bin_height = vp['price_levels'][1] - vp['price_levels'][0] if len(vp['price_levels']) > 1 else 0.01
+                if vp['va_low_idx'] <= i <= vp['va_high_idx']:
+                    bar_color = (0.2, 0.4, 0.8, 0.35)
+                else:
+                    bar_color = (0.5, 0.5, 0.5, 0.25)
+                price_ax.barh(y, bar_width, height=bin_height * 0.9, left=x_max - bar_width, color=bar_color, zorder=1)
+            # POC line
+            price_ax.axhline(y=vp['poc_price'], color='#ff0000', linewidth=0.8, linestyle='-', alpha=0.7, zorder=2)
+            # VAH/VAL lines
+            price_ax.axhline(y=vp['vah_price'], color='#2962ff', linewidth=0.6, linestyle='--', alpha=0.5, zorder=2)
+            price_ax.axhline(y=vp['val_price'], color='#2962ff', linewidth=0.6, linestyle='--', alpha=0.5, zorder=2)
+            legend_items.append(('POC', '#ff0000', '-'))
+            legend_items.append(('VAH/VAL', '#2962ff', '--'))
+            # Re-draw legend with VP entries
+            handles = []
+            for name, color, ls in legend_items:
+                handles.append(Line2D([0], [0], color=color, linewidth=1.5, linestyle=ls, label=name))
+            price_ax.legend(
+                handles=handles,
+                loc='upper left',
+                fontsize=7,
+                facecolor=TV_BG,
+                edgecolor=TV_BORDER,
+                labelcolor=TV_TEXT,
+                framealpha=0.8,
+                borderpad=0.4,
+                handlelength=1.5
+            )
+
         fig.savefig(buf, dpi=150, bbox_inches='tight', facecolor=TV_BG, edgecolor='none')
         plt.close(fig)
         buf.seek(0)
@@ -633,7 +732,7 @@ async def help_command(ctx):
     )
     embed.add_field(
         name='Overlays',
-        value='SMA 20 / 50 / 200 + VWAP + B4 Indicator (SuperTrend, Squeeze, RSI)',
+        value='SMA 20 / 50 / 200 + VWAP + Volume Profile (POC, Value Area)',
         inline=False
     )
     embed.add_field(
@@ -677,8 +776,8 @@ async def chart_weekly(ctx, symbol: str = 'AAPL'):
         symbol = symbol.upper()
         await ctx.send(f"Generating weekly chart for {symbol}...")
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=365*2)
-        df, source = get_bars(symbol, TimeFrame.Week, '1wk', start_date, end_date, yf_period='2y')
+        start_date = end_date - timedelta(days=365*5)
+        df, source = get_bars(symbol, TimeFrame.Week, '1wk', start_date, end_date, yf_period='5y')
         if df is None:
             await ctx.send(f"No data found for {symbol}.")
             return
@@ -696,8 +795,8 @@ async def chart_daily(ctx, symbol: str = 'AAPL'):
         symbol = symbol.upper()
         await ctx.send(f"Generating daily chart for {symbol}...")
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=365)
-        df, source = get_bars(symbol, TimeFrame.Day, '1d', start_date, end_date, yf_period='1y')
+        start_date = end_date - timedelta(days=730)
+        df, source = get_bars(symbol, TimeFrame.Day, '1d', start_date, end_date, yf_period='2y')
         if df is None:
             await ctx.send(f"No data found for {symbol}.")
             return
@@ -715,8 +814,8 @@ async def chart_hourly(ctx, symbol: str = 'AAPL'):
         symbol = symbol.upper()
         await ctx.send(f"Generating hourly chart for {symbol}...")
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=30)
-        df, source = get_bars(symbol, TimeFrame.Hour, '1h', start_date, end_date, yf_period='5d')
+        start_date = end_date - timedelta(days=90)
+        df, source = get_bars(symbol, TimeFrame.Hour, '1h', start_date, end_date, yf_period='1mo')
         if df is None:
             await ctx.send(f"No data found for {symbol}.")
             return
@@ -818,7 +917,7 @@ async def crypto_daily(ctx, symbol: str = 'BTC'):
         ticker = resolve_crypto_symbol(symbol)
         display_name = ticker.replace('-USD', '')
         await ctx.send(f"Generating daily chart for {display_name}...")
-        df = get_crypto_bars(symbol, '1d', period='3mo')
+        df = get_crypto_bars(symbol, '1d', period='2y')
         if df is None:
             await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
             return
@@ -856,7 +955,7 @@ async def crypto_weekly(ctx, symbol: str = 'BTC'):
         ticker = resolve_crypto_symbol(symbol)
         display_name = ticker.replace('-USD', '')
         await ctx.send(f"Generating weekly chart for {display_name}...")
-        df = get_crypto_bars(symbol, '1wk', period='1y')
+        df = get_crypto_bars(symbol, '1wk', period='5y')
         if df is None:
             await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
             return
@@ -875,7 +974,7 @@ async def crypto_hourly(ctx, symbol: str = 'BTC'):
         ticker = resolve_crypto_symbol(symbol)
         display_name = ticker.replace('-USD', '')
         await ctx.send(f"Generating hourly chart for {display_name}...")
-        df = get_crypto_bars(symbol, '1h', period='5d')
+        df = get_crypto_bars(symbol, '1h', period='1mo')
         if df is None:
             await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
             return
