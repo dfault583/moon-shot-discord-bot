@@ -1231,106 +1231,117 @@ async def on_ready():
 # ============================================================
 @bot.command(name='10bagger')
 async def ten_bagger(ctx):
-        """Show the current high-risk high-reward option trade pick."""
-        embed = discord.Embed(
-                    title='\U0001f680 10-Bagger Option Play \U0001f680',
-                    description='High-risk, high-reward option trade pick. **This is NOT financial advice. Do your own research.**',
-                    color=0xffeb3b
-                )
-        embed.add_field(
-                name='\U0001f4c8 Trade Setup',
-                value=(
-                        '**Ticker:** LUNR (Intuitive Machines)\n'
-                        '**Contract:** $25 Call\n'
-                        '**Expiration:** Feb 20, 2026\n'
-                        '**Entry Price:** ~$0.48\n'
-                        '**Type:** OTM Call (~26% out of the money)'
-                ),
-                inline=False
-        )
-        embed.add_field(
-                name='\U0001f3af Why This Trade',
-                value=(
-                        '\u2022 Space sector on fire \u2014 SpaceX/xAI merger valued at $1.25T fueling sector momentum\n'
-                        '\u2022 LUNR up 13% today, 22% YTD \u2014 strong bullish breakout\n'
-                        '\u2022 Analyst PT raised to $26 (Keybanc Overweight) \u2014 $25 strike sits right at target\n'
-                        '\u2022 NASA Artemis contracts + Lanteris acquisition expanding lunar economy footprint\n'
-                        '\u2022 52-week high $23.32 \u2014 breakout above could trigger gamma squeeze to $30+'
-                ),
-                inline=False
-        )
-        embed.add_field(
-                name='\U0001f4b0 10-Bagger Math',
-                value=(
-                        '\u2022 Entry: ~$0.48/contract ($48 per contract)\n'
-                        '\u2022 Breakeven: LUNR hits $25.48 by Feb 20\n'
-                        '\u2022 **10x Target:** LUNR hits ~$30 \u2192 call worth ~$5.00 (10.4x)\n'
-                        '\u2022 **If LUNR hits $35:** call worth ~$10.00 (20.8x)\n'
-                        '\u2022 Open Interest: 3,006 \u2014 solid liquidity\n'
-                        '\u2022 Ultra-cheap lottery ticket \U0001f3b0'
-                ),
-                inline=False
-        )
-        embed.add_field(
-                name='\u26a0\ufe0f Risk Level',
-                value='**EXTREME** \u2014 OTM options expire worthless most of the time. Only play with money you can afford to lose entirely.',
-                inline=False
-        )
-        embed.set_footer(text='Updated: Feb 9, 2026 \u2022 Not financial advice \u2022 DYOR')
-        await ctx.send(embed=embed)
+    """Show the current high-risk high-reward option trade pick."""
+    embed = discord.Embed(
+        title='\U0001f680 10-Bagger Option Play \U0001f680',
+        description='High-risk, high-reward option trade pick. **This is NOT financial advice. Do your own research.**',
+        color=0xffeb3b
+    )
+
+    embed.add_field(
+        name='\U0001f4c8 Trade Setup',
+        value=(
+            '**Ticker:** RUM (Rumble)\n'
+            '**Contract:** $9 Call\n'
+            '**Expiration:** Jul 17, 2026\n'
+            '**Entry Price:** ~$0.50\n'
+            '**Type:** OTM Call (~41% out of the money)'
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name='\U0001f3af Why This Trade',
+        value=(
+            '\u2022 UW Flow: 499 contracts bought on ask \u2014 bullish institutional signal\n'
+            '\u2022 Put/Call Ratio: 0.07 \u2014 one of the most bullish ratios on any stock\n'
+            '\u2022 52-week high $13.43 \u2014 $9 strike well within prior range\n'
+            '\u2022 157 DTE gives plenty of time for catalysts to play out\n'
+            '\u2022 Rumble growing in users, political tailwinds, potential acquisition target'
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name='\U0001f4b0 10-Bagger Math',
+        value=(
+            '\u2022 Entry: ~$0.50/contract ($50 per contract)\n'
+            '\u2022 Breakeven: RUM hits $9.50 (+49%) by Jul 17\n'
+            '\u2022 **10x Target:** RUM hits ~$14 \u2192 call worth ~$5.00 (10x)\n'
+            '\u2022 **If RUM hits $18:** call worth ~$9.00 (18x) \U0001f680\n'
+            '\u2022 52W high was $13.43, so 10x is a realistic possibility\n'
+            '\u2022 Ultra-cheap entry \u2014 $50 per contract \U0001f3b0'
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name='\u26a0\ufe0f Risk Level',
+        value='**EXTREME** \u2014 OTM options expire worthless most of the time. RUM is a volatile, speculative stock. Only play with money you can afford to lose entirely.',
+        inline=False
+    )
+
+    embed.set_footer(text='Updated: Feb 10, 2026 \u2022 Source: UW Flow \u2022 Not financial advice \u2022 DYOR')
+    await ctx.send(embed=embed)
 
 # RETARD SPECIAL COMMAND
 # ============================================================
 @bot.command(name='retardspecial')
 async def retard_special(ctx):
-        """The most degenerate option trade imaginable."""
-        embed = discord.Embed(
-                    title='\U0001f921 Retard Special \U0001f921',
-                    description='The absolute most degenerate trade possible. **This is NOT financial advice. This is financial self-harm.**',
-                    color=0xff0000
-                )
-        embed.add_field(
-                name='\U0001f4a5 The Play',
-                value=(
-                        '**Ticker:** HIMS (Hims & Hers Health)\n'
-                        '**Contract:** $30 Call\n'
-                        '**Expiration:** Feb 20, 2026\n'
-                        '**Entry Price:** ~$0.05\n'
-                        '**Type:** Deep OTM Call (~70% out of the money)\n'
-                        '**Cost:** $5 per contract. Five. Dollars.'
-                ),
-                inline=False
-        )
-        embed.add_field(
-                name='\U0001f4a8 Why This Is Insane',
-                value=(
-                        '\u2022 HIMS just crashed 23% today \u2014 Novo Nordisk sued them over weight-loss drugs\n'
-                        '\u2022 Stock went from $23 to $17.70 in one day\n'
-                        '\u2022 Needs a 70% bounce to $30 in 11 days to be worth ANYTHING\n'
-                        '\u2022 This is catching a falling knife... with your teeth\n'
-                        '\u2022 52-week high was $73 so $30 is technically possible... technically'
-                ),
-                inline=False
-        )
-        embed.add_field(
-                name='\U0001f911 Degen Math',
-                value=(
-                        '\u2022 Entry: ~$0.05/contract ($5 per contract)\n'
-                        '\u2022 Breakeven: HIMS hits $30.05 by Feb 20 (lol)\n'
-                        '\u2022 **If HIMS bounces to $35:** $5.00/contract = 100x \U0001f680\n'
-                        '\u2022 **If HIMS bounces to $40:** $10.00/contract = 200x \U0001f680\U0001f680\n'
-                        '\u2022 **Probability of profit:** Approximately zero\n'
-                        '\u2022 Open Interest: 1,297 \u2014 you are not alone in your delusion'
-                ),
-                inline=False
-        )
-        embed.add_field(
-                name='\u2622\ufe0f Risk Level',
-                value='**BEYOND EXTREME** \u2014 This will almost certainly expire worthless. You are literally lighting money on fire. But it\'s only $5 so who cares.',
-                inline=False
-        )
-        embed.set_footer(text='Updated: Feb 9, 2026 \u2022 Not financial advice \u2022 Pure degeneracy \u2022 DYOR')
-        await ctx.send(embed=embed)
+    """The most degenerate option trade imaginable."""
+    embed = discord.Embed(
+        title='\U0001f921 Retard Special \U0001f921',
+        description='The absolute most degenerate trade possible. **This is NOT financial advice. This is financial self-harm.**',
+        color=0xff0000
+    )
+
+    embed.add_field(
+        name='\U0001f4a5 The Play',
+        value=(
+            '**Ticker:** STT (State Street Corp)\n'
+            '**Contract:** $150 Call\n'
+            '**Expiration:** Mar 20, 2026\n'
+            '**Entry Price:** ~$0.54\n'
+            '**Type:** OTM Call (~11% out of the money)\n'
+            '**Cost:** $54 per contract'
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name='\U0001f4a8 Why This Is Insane',
+        value=(
+            '\u2022 Someone bought FORTY-FIVE THOUSAND contracts on a floor trade \u2014 $2.43M premium\n'
+            '\u2022 Stock at $135.24, needs to break through its 52W high of $137.05 AND keep ripping to $150\n'
+            '\u2022 Put/Call ratio: 0.05 \u2014 basically nobody is buying puts, pure call degenracy\n'
+            '\u2022 38 days to go from a boring bank stock to absolute moonshot\n'
+            '\u2022 State Street is a custody bank... not exactly a meme stock catalyst machine'
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name='\U0001f911 Degen Math',
+        value=(
+            '\u2022 Entry: ~$0.54/contract ($54 per contract)\n'
+            '\u2022 Breakeven: STT hits $150.54 by Mar 20 (+11.3%)\n'
+            '\u2022 **If STT hits $160:** $10/contract = 18.5x \U0001f680\n'
+            '\u2022 **If STT hits $170:** $20/contract = 37x \U0001f680\U0001f680\n'
+            '\u2022 45,000 contracts = someone bet $2.43M on this. Are they smart or dumb?\n'
+            '\u2022 Following a whale into a bank stock yolo \u2014 peak degeneracy'
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name='\u2622\ufe0f Risk Level',
+        value="**BEYOND EXTREME** \u2014 You're betting a custody bank breaks to all-time highs in 38 days because one whale said so. This is not investing. This is gambling with extra steps.",
+        inline=False
+    )
+
+    embed.set_footer(text='Updated: Feb 10, 2026 \u2022 Source: UW Flow \u2022 Not financial advice \u2022 Pure degeneracy \u2022 DYOR')
+    await ctx.send(embed=embed)
+
 # ============================================================
 # JOINIS COMMAND - Highest Probability Plays (Unusual Whales Flow)
 # ============================================================
