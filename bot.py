@@ -81,6 +81,57 @@ def resolve_crypto_symbol(symbol):
         return symbol
     return f'{symbol}-USD'
 
+# Futures aliases for yfinance
+FUTURES_ALIASES = {
+    'ES': 'ES=F', 'SPX': 'ES=F', 'SP500': 'ES=F', 'SPOOS': 'ES=F',
+    'NQ': 'NQ=F', 'NASDAQ': 'NQ=F', 'NDX': 'NQ=F',
+    'YM': 'YM=F', 'DOW': 'YM=F', 'DJIA': 'YM=F',
+    'RTY': 'RTY=F', 'RUSSELL': 'RTY=F', 'RUT': 'RTY=F',
+    'CL': 'CL=F', 'OIL': 'CL=F', 'CRUDE': 'CL=F', 'WTI': 'CL=F',
+    'GC': 'GC=F', 'GOLD': 'GC=F',
+    'SI': 'SI=F', 'SILVER': 'SI=F',
+    'HG': 'HG=F', 'COPPER': 'HG=F',
+    'NG': 'NG=F', 'NATGAS': 'NG=F',
+    'ZB': 'ZB=F', 'BONDS': 'ZB=F', 'TBOND': 'ZB=F',
+    'ZN': 'ZN=F', 'TNOTE': 'ZN=F',
+    'ZC': 'ZC=F', 'CORN': 'ZC=F',
+    'ZS': 'ZS=F', 'SOYBEAN': 'ZS=F',
+    'ZW': 'ZW=F', 'WHEAT': 'ZW=F',
+    'DX': 'DX=F', 'DOLLAR': 'DX=F', 'DXY': 'DX-Y.NYB',
+    '6E': '6E=F', 'EURO': '6E=F', 'EURUSD': '6E=F',
+    '6J': '6J=F', 'YEN': '6J=F',
+    '6B': '6B=F', 'POUND': '6B=F', 'GBP': '6B=F',
+    'VIX': '^VIX', 'VX': 'VX=F',
+}
+
+FUTURES_DISPLAY_NAMES = {
+    'ES=F': 'ES (S&P 500)', 'NQ=F': 'NQ (Nasdaq 100)', 'YM=F': 'YM (Dow)',
+    'RTY=F': 'RTY (Russell 2000)', 'CL=F': 'CL (Crude Oil)', 'GC=F': 'GC (Gold)',
+    'SI=F': 'SI (Silver)', 'HG=F': 'HG (Copper)', 'NG=F': 'NG (Nat Gas)',
+    'ZB=F': 'ZB (T-Bond)', 'ZN=F': 'ZN (10Y Note)', 'ZC=F': 'ZC (Corn)',
+    'ZS=F': 'ZS (Soybean)', 'ZW=F': 'ZW (Wheat)', 'DX=F': 'DX (Dollar Index)',
+    'DX-Y.NYB': 'DXY (Dollar Index)', '6E=F': '6E (Euro)', '6J=F': '6J (Yen)',
+    '6B=F': '6B (British Pound)', '^VIX': 'VIX', 'VX=F': 'VX (VIX Futures)',
+}
+
+def resolve_futures_symbol(symbol):
+    """Convert user input to yfinance futures ticker format."""
+    symbol = symbol.upper().strip()
+    if symbol in FUTURES_ALIASES:
+        return FUTURES_ALIASES[symbol]
+    if symbol.endswith('=F') or symbol.startswith('^'):
+        return symbol
+    return f'{symbol}=F'
+
+def get_futures_bars(symbol, yf_interval, period=None, start_date=None, end_date=None):
+    """Get futures data from yfinance."""
+    ticker_symbol = resolve_futures_symbol(symbol)
+    df = get_bars_yfinance(ticker_symbol, yf_interval, period=period, start_date=start_date, end_date=end_date)
+    if df is not None and len(df) > 0:
+        return df, ticker_symbol
+    return None, ticker_symbol
+
+
 # Timeframe mappings for yfinance
 YF_INTERVALS = {
     'month': '1mo',
@@ -172,6 +223,19 @@ def get_price_info(symbol):
                 return result
     except Exception as e:
         print(f"Stock lookup failed for {symbol}: {e}")
+
+    # Try as futures
+    if symbol in FUTURES_ALIASES:
+        futures_ticker_str = FUTURES_ALIASES[symbol]
+        try:
+            ticker = yf.Ticker(futures_ticker_str)
+            info = ticker.fast_info
+            if info and hasattr(info, 'last_price') and info.last_price is not None:
+                result = _build_price_embed(ticker, futures_ticker_str, is_crypto=False)
+                if result:
+                    return result
+        except Exception as e:
+            print(f"Futures lookup failed for {futures_ticker_str}: {e}")
 
     # Try as crypto
     crypto_ticker_str = resolve_crypto_symbol(symbol)
@@ -722,6 +786,22 @@ async def help_command(ctx):
         inline=False
     )
     embed.add_field(
+        name='Futures Charts',
+        value=(
+            '**!fm SYMBOL** \u2014 Monthly chart (2 years)\n'
+            '**!fw SYMBOL** \u2014 Weekly chart (1 year)\n'
+            '**!fd SYMBOL** \u2014 Daily chart (3 months)\n'
+            '**!fh SYMBOL** \u2014 Hourly chart (5 days)\n'
+            '**!f1m SYMBOL** \u2014 1 min chart (today)\n'
+            '**!f5m SYMBOL** \u2014 5 min chart (today)\n'
+            '**!f15m SYMBOL** \u2014 15 min chart (today)\n'
+            '**!f30m SYMBOL** \u2014 30 min chart (today)\n'
+            '\nSymbols: ES, NQ, YM, RTY, CL, GC, SI, NG, VIX, DXY, ZB, 6E & more\n'
+            'Examples: !fd ES, !fh NQ, !f5m GOLD'
+        ),
+        inline=False
+    )
+    embed.add_field(
         name='Price Check',
         value=(
             '**!p / !price SYMBOL** \u2014 Quick price check (stocks & crypto)\n'
@@ -1025,6 +1105,121 @@ async def crypto_15min(ctx, symbol: str = 'BTC'):
 @bot.command(name='cc30m')
 async def crypto_30min(ctx, symbol: str = 'BTC'):
     await _crypto_chart_minute(ctx, symbol, 30)
+
+# ============================================================
+# FUTURES COMMANDS
+# ============================================================
+
+@bot.command(name='fd')
+async def futures_daily(ctx, symbol: str = 'ES'):
+    """Daily futures chart (3 months)."""
+    try:
+        df, ticker = get_futures_bars(symbol, '1d', period='2y')
+        display_name = FUTURES_DISPLAY_NAMES.get(ticker, ticker.replace('=F', ''))
+        if df is None:
+            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
+            return
+        await ctx.send(f"Generating daily chart for {display_name}...")
+        buf = make_chart(df, display_name, '1D', display_count=65, source='yfinance')
+        if buf is None:
+            await ctx.send(f"Could not generate chart for {display_name}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{symbol}_futures_daily.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
+
+@bot.command(name='fw')
+async def futures_weekly(ctx, symbol: str = 'ES'):
+    """Weekly futures chart (1 year)."""
+    try:
+        df, ticker = get_futures_bars(symbol, '1wk', period='5y')
+        display_name = FUTURES_DISPLAY_NAMES.get(ticker, ticker.replace('=F', ''))
+        if df is None:
+            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
+            return
+        await ctx.send(f"Generating weekly chart for {display_name}...")
+        buf = make_chart(df, display_name, '1W', display_count=52, source='yfinance')
+        if buf is None:
+            await ctx.send(f"Could not generate chart for {display_name}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{symbol}_futures_weekly.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
+
+@bot.command(name='fm')
+async def futures_monthly(ctx, symbol: str = 'ES'):
+    """Monthly futures chart (2 years)."""
+    try:
+        df, ticker = get_futures_bars(symbol, '1mo', period='5y')
+        display_name = FUTURES_DISPLAY_NAMES.get(ticker, ticker.replace('=F', ''))
+        if df is None:
+            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
+            return
+        await ctx.send(f"Generating monthly chart for {display_name}...")
+        buf = make_chart(df, display_name, '1M', source='yfinance')
+        if buf is None:
+            await ctx.send(f"Could not generate chart for {display_name}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{symbol}_futures_monthly.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
+
+@bot.command(name='fh')
+async def futures_hourly(ctx, symbol: str = 'ES'):
+    """Hourly futures chart (5 days)."""
+    try:
+        df, ticker = get_futures_bars(symbol, '1h', period='1mo')
+        display_name = FUTURES_DISPLAY_NAMES.get(ticker, ticker.replace('=F', ''))
+        if df is None:
+            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
+            return
+        await ctx.send(f"Generating hourly chart for {display_name}...")
+        buf = make_chart(df, display_name, '1H', display_count=60, source='yfinance')
+        if buf is None:
+            await ctx.send(f"Could not generate chart for {display_name}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{symbol}_futures_hourly.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
+
+async def _futures_chart_minute(ctx, symbol, minutes):
+    """Minute-level futures chart helper."""
+    try:
+        yf_interval = f'{minutes}m' if minutes > 1 else '1m'
+        df, ticker = get_futures_bars(symbol, yf_interval, period='1d')
+        display_name = FUTURES_DISPLAY_NAMES.get(ticker, ticker.replace('=F', ''))
+        if df is None or len(df) == 0:
+            await ctx.send(f"No data found for {display_name}. Try again later.")
+            return
+        await ctx.send(f"Generating {minutes}min chart for {display_name}...")
+        if df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+        if len(df) < 2:
+            await ctx.send(f"Not enough data for {display_name} yet.")
+            return
+        buf = make_chart(df, display_name, f'{minutes}m', source='yfinance')
+        if buf is None:
+            await ctx.send(f"Could not generate chart for {display_name}.")
+            return
+        await ctx.send(file=discord.File(buf, filename=f'{symbol}_futures_{minutes}min.png'))
+    except Exception as e:
+        await ctx.send(f"Error: {e}")
+
+@bot.command(name='f1m')
+async def futures_1min(ctx, symbol: str = 'ES'):
+    await _futures_chart_minute(ctx, symbol, 1)
+
+@bot.command(name='f5m')
+async def futures_5min(ctx, symbol: str = 'ES'):
+    await _futures_chart_minute(ctx, symbol, 5)
+
+@bot.command(name='f15m')
+async def futures_15min(ctx, symbol: str = 'ES'):
+    await _futures_chart_minute(ctx, symbol, 15)
+
+@bot.command(name='f30m')
+async def futures_30min(ctx, symbol: str = 'ES'):
+    await _futures_chart_minute(ctx, symbol, 30)
 
 @bot.event
 async def on_ready():
