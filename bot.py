@@ -634,14 +634,16 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             gridaxis='both',
             y_on_right=True,
             rc={
-                'font.size': 9,
+                'font.size': 11,
                 'axes.labelcolor': TV_TEXT,
                 'axes.edgecolor': TV_BORDER,
                 'xtick.color': TV_TEXT,
                 'ytick.color': TV_TEXT,
+                'ytick.labelsize': 12,
+                'xtick.labelsize': 10,
                 'text.color': TV_TEXT,
-                'figure.titlesize': 12,
-                'axes.titlesize': 12,
+                'figure.titlesize': 13,
+                'axes.titlesize': 13,
             }
         )
 
@@ -669,7 +671,7 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             panel_ratios=(4, 1)
         )
 
-        fig.suptitle(title, color=TV_TEXT, fontsize=13, fontweight='bold', x=0.08, ha='left')
+        fig.suptitle(title, color='#ffffff', fontsize=14, fontweight='bold', x=0.08, ha='left')
 
         # Add indicator legend
         if legend_items:
@@ -690,7 +692,12 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
 
         for ax in axes:
             ax.set_facecolor(TV_BG)
-            ax.tick_params(colors=TV_TEXT, labelsize=8)
+            ax.tick_params(colors=TV_TEXT, labelsize=11)
+            # Make y-axis price labels larger and bolder
+            ax.yaxis.set_tick_params(labelsize=12)
+            for label in ax.yaxis.get_ticklabels():
+                label.set_fontweight('bold')
+                label.set_color('#ffffff')
             for spine in ax.spines.values():
                 spine.set_color(TV_BORDER)
 
