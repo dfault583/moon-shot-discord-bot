@@ -663,7 +663,7 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             df, type='candle', style=s, volume=True,
             addplot=plots if plots else None,
             figsize=(14, 9), tight_layout=False,
-            scale_padding={'left': 0.05, 'top': 1.2, 'right': 1.0, 'bottom': 0.8},
+            scale_padding={'left': 0.05, 'top': 1.2, 'right': 0.5, 'bottom': 0.8},
             returnfig=True,
             volume_panel=1,
             panel_ratios=(4, 1)
@@ -694,27 +694,27 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             for spine in ax.spines.values():
                 spine.set_color(TV_BORDER)
 
-        # === Volume Profile ===
+        # === Volume Profile (overlay using blended transform) ===
         vp = calculate_volume_profile(df, num_bins=80)
         if vp is not None:
+            from matplotlib.transforms import blended_transform_factory
             price_ax = axes[0]
             max_vol = vp['max_vol']
-            # Scale VP bars to ~20% of chart width
-            x_min, x_max = price_ax.get_xlim()
-            chart_width = x_max - x_min
-            vp_width = chart_width * 0.20
+            # Use blended transform: x in axes coords (0-1), y in data coords (price)
+            trans = blended_transform_factory(price_ax.transAxes, price_ax.transData)
+            bin_height = vp['price_levels'][1] - vp['price_levels'][0] if len(vp['price_levels']) > 1 else 0.01
             for i in range(len(vp['bins'])):
                 vol = vp['bins'][i]
                 if vol <= 0:
                     continue
-                bar_width = (vol / max_vol) * vp_width
+                bar_width_pct = (vol / max_vol) * 0.20  # max 20% of axes width
                 y = vp['price_levels'][i]
-                bin_height = vp['price_levels'][1] - vp['price_levels'][0] if len(vp['price_levels']) > 1 else 0.01
                 if vp['va_low_idx'] <= i <= vp['va_high_idx']:
                     bar_color = (0.2, 0.4, 0.8, 0.35)
                 else:
                     bar_color = (0.5, 0.5, 0.5, 0.25)
-                price_ax.barh(y, bar_width, height=bin_height * 0.9, left=x_max - bar_width, color=bar_color, zorder=1)
+                # Draw from right edge inward: left = 1.0 - bar_width, width = bar_width
+                price_ax.barh(y, bar_width_pct, height=bin_height * 0.9, left=1.0 - bar_width_pct, color=bar_color, transform=trans, zorder=1, clip_on=True)
             # POC line
             price_ax.axhline(y=vp['poc_price'], color='#ff0000', linewidth=0.8, linestyle='-', alpha=0.7, zorder=2)
             # VAH/VAL lines
