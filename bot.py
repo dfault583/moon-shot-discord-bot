@@ -1284,50 +1284,63 @@ async def ten_bagger(ctx):
     """Show the current high-risk high-reward option trade pick."""
     embed = discord.Embed(
         title='\U0001f680 10-Bagger Option Play \U0001f680',
-        description='High-risk, high-reward option trade pick. **This is NOT financial advice. Do your own research.**',
+        description='High-risk, high-reward option trade pick based on unusual options flow & current market trends. **This is NOT financial advice. Do your own research.**',
         color=0xffeb3b
     )
     embed.add_field(
         name='\U0001f4c8 Trade Setup',
         value=(
-            '**Ticker:** PONY (Pony AI)\n'
-            '**Contract:** $20 Call\n'
+            '**Ticker:** WULF (TeraWulf Inc.)\n'
+            '**Contract:** $22 Call\n'
             '**Expiration:** Mar 20, 2026\n'
-            '**Entry Price:** ~$0.26\n'
-            '**Type:** OTM Call (~39% out of the money)'
+            '**Entry Price:** ~$0.59\n'
+            '**Type:** OTM Call (~37% out of the money)\n'
+            '**Cost:** ~$59 per contract'
         ),
         inline=False
     )
     embed.add_field(
         name='\U0001f3af Why This Trade',
         value=(
-            '\u2022 UW Flow: 999 contracts bought on ask \u2014 100% ask side bullish signal\n'
-            '\u2022 Put/Call Ratio: 0.12 \u2014 heavily bullish options positioning\n'
-            '\u2022 52-week high $24.92 \u2014 $20 strike is within prior range\n'
-            '\u2022 36 DTE gives time for autonomous driving catalysts\n'
-            '\u2022 Pony AI is a leading self-driving company, recent IPO with high momentum'
+            '\u2022 UW Flow: 4,000 contracts bought on ask \u2014 $236K premium, 99% ask side\n'
+            '\u2022 Volume 4,080 vs OI 2,414 \u2014 massive new positioning\n'
+            '\u2022 Bitcoin mining + AI data center narrative is the hottest sector theme right now\n'
+            '\u2022 BTC holding strong above $97K \u2014 miners printing money\n'
+            '\u2022 36 DTE gives time for BTC breakout above $100K and WULF re-rating\n'
+            '\u2022 TeraWulf pivoting to HPC/AI data centers \u2014 dual revenue catalyst'
         ),
         inline=False
     )
     embed.add_field(
         name='\U0001f4b0 10-Bagger Math',
         value=(
-            '\u2022 Entry: ~$0.26/contract ($26 per contract)\n'
-            '\u2022 Breakeven: PONY hits $20.26 (+41%) by Mar 20\n'
-            '\u2022 **10x Target:** PONY hits ~$22.80 \u2192 call worth ~$2.80 (10.8x)\n'
-            '\u2022 **If PONY hits $25 (52W high):** call worth ~$5.00 (19x) \U0001f680\n'
-            '\u2022 Ultra-cheap entry \u2014 only $26 per contract \U0001f3b0'
+            '\u2022 Entry: ~$0.59/contract ($59 per contract)\n'
+            '\u2022 Breakeven: WULF hits $22.59 (+40%) by Mar 20\n'
+            '\u2022 **10x Target:** WULF hits ~$27.90 \u2192 call worth ~$5.90 (10x) \U0001f680\n'
+            '\u2022 **If WULF hits $30 (prior highs):** call worth ~$8.00 (13.5x) \U0001f680\U0001f680\n'
+            '\u2022 BTC to $120K could send miners parabolic \u2014 WULF could see $35+ in a squeeze'
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name='\U0001f525 News & Trend Context',
+        value=(
+            '\u2022 Bitcoin hovering near ATH \u2014 any breakout sends miners flying\n'
+            '\u2022 AI data center demand exploding \u2014 WULF positioned as hybrid miner/HPC play\n'
+            '\u2022 MU, NVDA, SNDK dominating bullish flow \u2014 AI/compute theme strongest in market\n'
+            '\u2022 Crypto stocks showing relative strength \u2014 COIN net positive flow on UW'
         ),
         inline=False
     )
     embed.add_field(
         name='\u26a0\ufe0f Risk Level',
-        value='**EXTREME** \u2014 OTM options expire worthless most of the time. PONY is a volatile recent IPO. Only play with money you can afford to lose entirely.',
+        value='**EXTREME** \u2014 OTM options expire worthless most of the time. WULF is volatile and tied to BTC price action. If Bitcoin dumps, this goes to zero. Only play with money you can afford to lose entirely.',
         inline=False
     )
-    embed.set_footer(text='Updated: Feb 11, 2026 \u2022 Source: UW Flow \u2022 Not financial advice \u2022 DYOR')
+    embed.set_footer(text='Updated: Feb 12, 2026 \u2022 Source: UW Flow + Market Trends \u2022 Not financial advice \u2022 DYOR')
     await ctx.send(embed=embed)
 
+# ============================================================
 # RETARD SPECIAL COMMAND
 # ============================================================
 @bot.command(name='retardspecial')
@@ -1341,45 +1354,56 @@ async def retard_special(ctx):
     embed.add_field(
         name='\U0001f4a5 The Play',
         value=(
-            '**Ticker:** DNN (Denison Mines)\n'
-            '**Contract:** $4 Call\n'
+            '**Ticker:** RKT (Rocket Companies)\n'
+            '**Contract:** $20.50 Call\n'
             '**Expiration:** Feb 13, 2026\n'
-            '**Entry Price:** ~$0.10\n'
-            '**Type:** OTM Call (~3% out of the money)\n'
-            '**Cost:** $10 per contract\n'
-            '**DTE:** 2 DAYS'
+            '**Entry Price:** ~$0.09\n'
+            '**Type:** OTM Call (~10% out of the money)\n'
+            '**Cost:** $9 per contract\n'
+            '**DTE:** 1 DAY'
         ),
         inline=False
     )
     embed.add_field(
         name='\U0001f4a8 Why This Is Insane',
         value=(
-            '\u2022 Someone bought TWENTY THOUSAND contracts on the ask \u2014 $200K premium on a URANIUM MINER\n'
-            '\u2022 Stock at $3.89 needs to break $4 in TWO DAYS\n'
-            '\u2022 99% ask side \u2014 pure aggression on a penny-level option\n'
-            '\u2022 Open Interest was 20,135 \u2014 this one order basically doubled the chain\n'
-            '\u2022 Denison Mines is a uranium exploration company... not exactly the stuff of moonshots'
+            '\u2022 Someone bought NINE THOUSAND contracts on the ask \u2014 $84K premium on a MORTGAGE COMPANY\n'
+            '\u2022 Volume 10,675 vs OI 4,357 \u2014 2.5x the open interest in a SINGLE DAY\n'
+            '\u2022 89% ask side \u2014 pure aggression on a penny option expiring TOMORROW\n'
+            '\u2022 Stock at $18.68 needs to gap up 10%+ overnight to even be worth something\n'
+            '\u2022 Mortgage rates still elevated, housing market sluggish \u2014 no fundamental catalyst\n'
+            '\u2022 This is someone betting $84K that a mortgage lender moons in 24 hours'
         ),
         inline=False
     )
     embed.add_field(
         name='\U0001f911 Degen Math',
         value=(
-            '\u2022 Entry: ~$0.10/contract ($10 per contract)\n'
-            '\u2022 Breakeven: DNN hits $4.10 (+5.4%) by Feb 13\n'
-            '\u2022 **If DNN hits $4.50:** $0.50/contract = 5x \U0001f680\n'
-            '\u2022 **If DNN hits $5.00:** $1.00/contract = 10x \U0001f680\U0001f680\n'
-            '\u2022 20,000 contracts = someone yoloed $200K on a uranium miner popping in 2 days\n'
-            '\u2022 At $10 a contract this is literal scratch ticket territory'
+            '\u2022 Entry: ~$0.09/contract ($9 per contract)\n'
+            '\u2022 Breakeven: RKT hits $20.59 (+10.2%) by tomorrow\n'
+            '\u2022 **If RKT hits $21.50:** $1.00/contract = 11x \U0001f680\n'
+            '\u2022 **If RKT hits $22.00:** $1.50/contract = 16.7x \U0001f680\U0001f680\n'
+            '\u2022 9,291 contracts = someone yoloed $84K that Rocket Companies goes vertical overnight\n'
+            '\u2022 At $9 a contract this is cheaper than a Wendy\'s meal'
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name='\U0001f525 News & Trend Context',
+        value=(
+            '\u2022 CPI data dropping Feb 12 \u2014 hot print could tank rates and send mortgage stocks flying\n'
+            '\u2022 Fed rate cut hopes still alive \u2014 any dovish signal is rocket fuel for RKT\n'
+            '\u2022 RKT had another $20.50C block at $25K premium same day \u2014 repeat buyer\n'
+            '\u2022 Financials showing strength \u2014 BAC also had massive call flow (5,695 contracts)'
         ),
         inline=False
     )
     embed.add_field(
         name='\u2622\ufe0f Risk Level',
-        value="**BEYOND EXTREME** \u2014 You're betting a Canadian uranium explorer breaks out in 48 hours because one whale said so. 2 DTE on an OTM call. This is not investing. This is not even gambling. This is lighting money on fire and hoping the smoke spells 'profit'.",
+        value="**BEYOND EXTREME** \u2014 You're betting a mortgage company gaps up 10%+ overnight because one whale said so. 1 DTE on a deep OTM call. This is not investing. This is not even gambling. This is buying a lottery ticket and expecting it to hit.",
         inline=False
     )
-    embed.set_footer(text='Updated: Feb 11, 2026 \u2022 Source: UW Flow \u2022 Not financial advice \u2022 Pure degeneracy \u2022 DYOR')
+    embed.set_footer(text='Updated: Feb 12, 2026 \u2022 Source: UW Flow + Market Trends \u2022 Not financial advice \u2022 Pure degeneracy \u2022 DYOR')
     await ctx.send(embed=embed)
 
 # ============================================================
@@ -1390,55 +1414,67 @@ async def joinis(ctx):
     """Top 3 highest probability single-leg call trades from UW flow."""
     embed = discord.Embed(
         title='\U0001f3af JOINIS \u2014 Top 3 High Probability Calls \U0001f3af',
-        description='Highest conviction single-leg call plays sourced from Unusual Whales flow data. **This is NOT financial advice. Do your own research.**',
+        description='Highest conviction single-leg call plays sourced from Unusual Whales flow data + current market trends. **This is NOT financial advice. Do your own research.**',
         color=0x26a69a
     )
-    # Trade 1: SNY
+    # Trade 1: NCLH
     embed.add_field(
-        name='\U0001f7e2 #1 \u2014 SNY (Sanofi) $50C 03/20',
+        name='\U0001f7e2 #1 \u2014 NCLH (Norwegian Cruise Line) $23.5C 02/20',
         value=(
-            '**Entry:** ~$1.35 ($135/contract)\n'
-            '**DTE:** 36 days \u2022 **Stock:** $49.25\n'
-            '**UW Signal:** 2,500 contracts bought on ask \u2022 $338K premium \u2022 98% ask\n'
-            '**Flow Context:** P/C ratio 0.04 \u2014 one of the most bullish ratios on any stock today\n'
-            '**Thesis:** Slightly OTM, pharma giant with massive call accumulation, no earnings until 4/23\n'
-            '**Breakeven:** SNY hits $51.35 (+4.3%) by Mar 20'
+            '**Entry:** ~$0.51 ($51/contract)\n'
+            '**DTE:** 8 days \u2022 **Stock:** $22.62 \u2022 **Only 3.9% OTM**\n'
+            '**UW Signal:** 4,272 contracts bought on ask \u2022 $218K premium \u2022 99% ask\n'
+            '**Volume:** 4,300 vs OI 403 \u2014 10x the open interest in new buying\n'
+            '**Thesis:** Travel/leisure sector strong, barely OTM, massive institutional size\n'
+            '**News:** Consumer spending resilient, cruise bookings at record highs for 2026\n'
+            '**Breakeven:** NCLH hits $24.01 (+6.1%) by Feb 20'
         ),
         inline=False
     )
-    # Trade 2: NRG
+    # Trade 2: CART
     embed.add_field(
-        name='\U0001f7e2 #2 \u2014 NRG (NRG Energy) $167.5C 02/20',
+        name='\U0001f7e2 #2 \u2014 CART (Maplebear/Instacart) $35C 02/20',
         value=(
-            '**Entry:** ~$1.90 ($190/contract)\n'
-            '**DTE:** 8 days \u2022 **Stock:** $160.63\n'
-            '**UW Signal:** 900 contracts bought on ask \u2022 $171K premium \u2022 100% ask\n'
-            '**Flow Context:** Energy sector strength, near 52W highs\n'
-            '**Thesis:** Short-dated momentum play, aggressive ask-side buying, earnings 2/24 (after expiry)\n'
-            '**Breakeven:** NRG hits $169.40 (+5.5%) by Feb 20'
+            '**Entry:** ~$1.04 ($104/contract)\n'
+            '**DTE:** 8 days \u2022 **Stock:** $33.28 \u2022 **Only 5.2% OTM**\n'
+            '**UW Signal:** 1,000 contracts bought on ask \u2022 $104K premium \u2022 100% ask\n'
+            '**Volume:** 1,000 vs OI 278 \u2014 3.6x open interest, all new\n'
+            '**Thesis:** E-commerce/delivery momentum, CART near breakout level\n'
+            '**News:** AI-powered grocery delivery growing, CART expanding ad revenue\n'
+            '**Breakeven:** CART hits $36.04 (+8.3%) by Feb 20'
         ),
         inline=False
     )
-    # Trade 3: BAC
+    # Trade 3: MU
     embed.add_field(
-        name='\U0001f7e2 #3 \u2014 BAC (Bank of America) $57C 02/20',
+        name='\U0001f7e2 #3 \u2014 MU (Micron Technology) $467.5C 02/20',
         value=(
-            '**Entry:** ~$0.18 ($18/contract)\n'
-            '**DTE:** 8 days \u2022 **Stock:** $53.93\n'
-            '**UW Signal:** 5,695 contracts bought on ask \u2022 $103K premium \u2022 94% ask\n'
-            '**Flow Context:** Near 52W high of $57.55, massive institutional call volume\n'
-            '**Thesis:** Bank sector momentum, cheap lottery ticket, no earnings until 4/21\n'
-            '**Breakeven:** BAC hits $57.18 (+6.0%) by Feb 20'
+            '**Entry:** ~$3.00 ($300/contract)\n'
+            '**DTE:** 8 days \u2022 **Stock:** $411.27 \u2022 **13.7% OTM**\n'
+            '**UW Signal:** #1 Net Impact on all of UW \u2014 most bullish flow in entire market\n'
+            '**Volume:** 135 \u2022 $34K premium \u2022 95% ask\n'
+            '**Thesis:** Memory chip demand exploding for AI, MU top net bullish impact across all stocks\n'
+            '**News:** HBM3E demand from NVDA surging, memory super-cycle narrative, AI buildout accelerating\n'
+            '**Breakeven:** MU hits $470.50 (+14.4%) by Feb 20'
+        ),
+        inline=False
+    )
+    embed.add_field(
+        name='\U0001f525 Market Trend Context',
+        value=(
+            '\u2022 **Top Bullish Flow (UW Net Impact):** MU, SNDK, NVDA, GOOGL, VRT, CRWV, META\n'
+            '\u2022 **Bearish Flow:** MDB, AVGO, AMD, TSM, MSTR, MSFT, ADBE, TSLA\n'
+            '\u2022 SPY at $694 \u2014 market holding near highs despite CPI uncertainty\n'
+            '\u2022 AI/compute and travel/leisure are the strongest sector flows today'
         ),
         inline=False
     )
     embed.add_field(
         name='\u26a0\ufe0f Risk',
-        value='All plays are OTM calls that can expire worthless. Only trade with money you can afford to lose. These are based on unusual options flow, not guaranteed outcomes.',
+        value='All plays are OTM calls that can expire worthless. Only trade with money you can afford to lose. These are based on unusual options flow + market trends, not guaranteed outcomes.',
         inline=False
     )
-    embed.set_footer(text='Updated: Feb 11, 2026 \u2022 Source: Unusual Whales Flow \u2022 Not financial advice \u2022 DYOR')
+    embed.set_footer(text='Updated: Feb 12, 2026 \u2022 Source: Unusual Whales Flow + Market Trends \u2022 Not financial advice \u2022 DYOR')
     await ctx.send(embed=embed)
 
 bot.run(os.getenv('DISCORD_TOKEN'))
-
