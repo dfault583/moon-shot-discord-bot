@@ -11,7 +11,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import FancyBboxPatch
 import matplotlib.gridspec as gridspec
 import yfinance as yf
-import io
+import iohh
 import os
 import numpy as np
 import pandas as pd
@@ -641,12 +641,8 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             plots.append(mpf.make_addplot(df['SMA200'], color='#ab47bc', width=1.2, panel=0))
             legend_items.append(('SMA 200', '#ab47bc', '-'))
         if df['VWAP'].notna().any():
-            plots.append(mpf.make_addplot(df['VWAP'], color='#2962ff', width=1.2, panel=0))
-            legend_items.append(('VWAP', '#2962ff', '-'))
-        if df['VWAP_UPPER'].notna().any():
-            plots.append(mpf.make_addplot(df['VWAP_UPPER'], color='#26a69a', width=0.8, linestyle='--', panel=0))
-            plots.append(mpf.make_addplot(df['VWAP_LOWER'], color='#26a69a', width=0.8, linestyle='--', panel=0))
-            legend_items.append(('VWAP Bands', '#26a69a', '--'))
+            plots.append(mpf.make_addplot(df['VWAP'], color='#ffeb3b', width=1.2, panel=0))
+            legend_items.append(('VWAP', '#ffeb3b', '-'))
 
         # Buy/Sell markers on main chart
         # === Chart Style ===
@@ -734,17 +730,7 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             for spine in ax.spines.values():
                 spine.set_color(TV_BORDER)
 
-        # === VWAP Band Fill ===
-        if df['VWAP_UPPER'].notna().any() and df['VWAP_LOWER'].notna().any():
-            price_ax = axes[0]
-            x_range = range(len(df))
-            upper_vals = df['VWAP_UPPER'].values
-            lower_vals = df['VWAP_LOWER'].values
-            price_ax.fill_between(x_range, lower_vals, upper_vals,
-                                  where=~np.isnan(upper_vals) & ~np.isnan(lower_vals),
-                                  color='#26a69a', alpha=0.08, zorder=1)
-
-                # === Volume Profile (overlay using blended transform) ===
+# === Volume Profile (overlay using blended transform) ===
         vp = calculate_volume_profile(df, num_bins=80)
         if vp is not None:
             from matplotlib.transforms import blended_transform_factory
@@ -862,7 +848,7 @@ async def help_command(ctx):
     )
     embed.add_field(
         name='Overlays',
-        value='SMA 20 / 50 / 200 + VWAP with Bands (1σ) + Volume Profile (POC, Value Area)',
+        value='SMA 20 / 50 / 200 + VWAP + Volume Profile (POC, Value Area)',
         inline=False
     )
     embed.add_field(
