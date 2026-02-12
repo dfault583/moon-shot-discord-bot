@@ -558,12 +558,12 @@ def calculate_b4_signals(df):
 
 
 def calculate_trend_lines(df, prd=20, pp_num=3, max_lines=3):
-        """Calculate pivot-based trend lines (LonesomeTheBlue style).
-            Returns list of dicts with keys: x1, y1, x2, y2, direction ('up' or 'down').
-                """
-        n = len(df)
-        if n < prd * 2 + 1:
-                    return []
+    """Calculate pivot-based trend lines (LonesomeTheBlue style).
+    Returns list of dicts with keys: x1, y1, x2, y2, direction ('up' or 'down').
+    """
+    n = len(df)
+    if n < prd * 2 + 1:
+        return []
 
     highs = df['high'].values
     lows = df['low'].values
@@ -574,23 +574,23 @@ def calculate_trend_lines(df, prd=20, pp_num=3, max_lines=3):
     pivot_lows = []
 
     for i in range(prd, n - prd):
-                # Pivot high: highest high in window
-                is_ph = True
-                for j in range(i - prd, i + prd + 1):
-                                if j != i and highs[j] >= highs[i]:
-                                                    is_ph = False
-                                                    break
-                                            if is_ph:
-                                                            pivot_highs.append((i, highs[i]))
+        # Pivot high: highest high in window
+        is_ph = True
+        for j in range(i - prd, i + prd + 1):
+            if j != i and highs[j] >= highs[i]:
+                is_ph = False
+                break
+        if is_ph:
+            pivot_highs.append((i, highs[i]))
 
         # Pivot low: lowest low in window
         is_pl = True
         for j in range(i - prd, i + prd + 1):
-                        if j != i and lows[j] <= lows[i]:
-                                            is_pl = False
-                                            break
-                                    if is_pl:
-                                                    pivot_lows.append((i, lows[i]))
+            if j != i and lows[j] <= lows[i]:
+                is_pl = False
+                break
+        if is_pl:
+            pivot_lows.append((i, lows[i]))
 
     # Keep only the most recent pp_num pivots
     recent_ph = pivot_highs[-pp_num:] if len(pivot_highs) >= pp_num else pivot_highs
@@ -601,67 +601,68 @@ def calculate_trend_lines(df, prd=20, pp_num=3, max_lines=3):
     # Uptrend lines from pivot lows (support)
     count_up = 0
     for p1 in range(len(recent_pl) - 1):
-                if count_up >= max_lines:
-                                break
-                            for p2 in range(len(recent_pl) - 1, p1, -1):
-                                            val1 = recent_pl[p1][1]
-                                            val2 = recent_pl[p2][1]
-                                            pos1 = recent_pl[p1][0]
-                                            pos2 = recent_pl[p2][0]
-                                            if pos1 == pos2:
-                                                                continue
-                                                            if val1 > val2:
-                                                                                diff = (val1 - val2) / (pos1 - pos2)
-                                                                                hline = val2 + diff
-                                                                                valid = True
-                                                                                last_x = n - 1
-                                                                                last_y = val2 + diff * (last_x - pos2)
-                                                                                for x in range(pos2 + 1, n):
-                                                                                                        line_val = val2 + diff * (x - pos2)
-                                                                                                        if closes[x] < line_val:
-                                                                                                                                    valid = False
-                                                                                                                                    break
-                                                                                                                            if valid:
-                                                                                                                                                    trend_lines.append({
-                                                                                                                                                                                'x1': pos2, 'y1': val2,
-                                                                                                                                                                                'x2': last_x, 'y2': last_y,
-                                                                                                                                                                                'direction': 'up'
-                                                                                                                                                        })
-                                                                                                                                                    count_up += 1
-                                                                                                                                                    break
-                                                                                                                                
+        if count_up >= max_lines:
+            break
+        for p2 in range(len(recent_pl) - 1, p1, -1):
+            val1 = recent_pl[p1][1]
+            val2 = recent_pl[p2][1]
+            pos1 = recent_pl[p1][0]
+            pos2 = recent_pl[p2][0]
+            if pos1 == pos2:
+                continue
+            if val1 > val2:
+                diff = (val1 - val2) / (pos1 - pos2)
+                valid = True
+                last_x = n - 1
+                last_y = val2 + diff * (last_x - pos2)
+                for x in range(pos2 + 1, n):
+                    line_val = val2 + diff * (x - pos2)
+                    if closes[x] < line_val:
+                        valid = False
+                        break
+                if valid:
+                    trend_lines.append({
+                        'x1': pos2, 'y1': val2,
+                        'x2': last_x, 'y2': last_y,
+                        'direction': 'up'
+                    })
+                    count_up += 1
+                    break
+
     # Downtrend lines from pivot highs (resistance)
     count_down = 0
     for p1 in range(len(recent_ph) - 1):
-                if count_down >= max_lines:
-                                break
+        if count_down >= max_lines:
+            break
         for p2 in range(len(recent_ph) - 1, p1, -1):
-                        val1 = recent_ph[p1][1]
+            val1 = recent_ph[p1][1]
             val2 = recent_ph[p2][1]
             pos1 = recent_ph[p1][0]
             pos2 = recent_ph[p2][0]
             if pos1 == pos2:
-                                continue
+                continue
             if val1 < val2:
-                                diff = (val2 - val1) / (pos1 - pos2)
+                diff = (val2 - val1) / (pos1 - pos2)
                 valid = True
                 last_x = n - 1
                 last_y = val2 - diff * (last_x - pos2)
                 for x in range(pos2 + 1, n):
-                                        line_val = val2 - diff * (x - pos2)
+                    line_val = val2 - diff * (x - pos2)
                     if closes[x] > line_val:
-                                                valid = False
-                                                break
-                                        if valid:
-                                                                trend_lines.append({
-                                                                                            'x1': pos2, 'y1': val2,
-                                                                                            'x2': last_x, 'y2': last_y,
-                                                                                            'direction': 'down'
-                                                                })
-                                                                count_down += 1
-                                                                break
+                        valid = False
+                        break
+                if valid:
+                    trend_lines.append({
+                        'x1': pos2, 'y1': val2,
+                        'x2': last_x, 'y2': last_y,
+                        'direction': 'down'
+                    })
+                    count_down += 1
+                    break
 
     return trend_lines
+
+
 def calculate_volume_profile(df, num_bins=100):
     """Calculate volume profile: volume distribution at each price level."""
     price_min = df['low'].min()
@@ -880,17 +881,17 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
                 handlelength=1.5
             )
 
-                # === Trend Lines ===
-                try:
-                                tl_lines = calculate_trend_lines(df, prd=20, pp_num=3, max_lines=3)
-                                price_ax = axes[0]
-                                for tl in tl_lines:
-                                                    x1, y1 = tl['x1'], tl['y1']
-                                                    x2, y2 = tl['x2'], tl['y2']
-                                                    tl_color = '#00e676' if tl['direction'] == 'up' else '#ff1744'
-                                                    price_ax.plot([x1, x2], [y1, y2], color=tl_color, linewidth=1.2, linestyle='-', alpha=0.85, zorder=5)
-                except Exception as e:
-                                print(f"Trend line error: {e}")
+        # === Trend Lines ===
+        try:
+            tl_lines = calculate_trend_lines(df, prd=20, pp_num=3, max_lines=3)
+            price_ax = axes[0]
+            for tl in tl_lines:
+                x1, y1 = tl['x1'], tl['y1']
+                x2, y2 = tl['x2'], tl['y2']
+                tl_color = '#00e676' if tl['direction'] == 'up' else '#ff1744'
+                price_ax.plot([x1, x2], [y1, y2], color=tl_color, linewidth=1.2, linestyle='-', alpha=0.85, zorder=5)
+        except Exception as e:
+            print(f"Trend line error: {e}")
         fig.savefig(buf, dpi=150, bbox_inches='tight', facecolor=TV_BG, edgecolor='none')
         plt.close(fig)
         buf.seek(0)
