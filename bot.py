@@ -1460,56 +1460,57 @@ async def retard_special(ctx):
     embed.add_field(
         name='\U0001f4a5 The Play',
         value=(
-            '**Ticker:** RKT (Rocket Companies)\n'
-            '**Contract:** $20.50 Call\n'
-            '**Expiration:** Feb 13, 2026\n'
-            '**Entry Price:** ~$0.09\n'
-            '**Type:** OTM Call (~10% out of the money)\n'
-            '**Cost:** $9 per contract\n'
-            '**DTE:** 1 DAY'
+            '**Ticker:** IBRX (ImmunityBio)\n'
+            '**Contract:** $7.50 Call\n'
+            '**Expiration:** Feb 20, 2026\n'
+            '**Entry Price:** ~$0.20\n'
+            '**Type:** OTM Call on a stock already up 33% today\n'
+            '**Cost:** $20 per contract\n'
+            '**DTE:** 2 DAYS'
         ),
         inline=False
     )
     embed.add_field(
         name='\U0001f4a8 Why This Is Insane',
         value=(
-            '\u2022 Someone bought NINE THOUSAND contracts on the ask \u2014 $84K premium on a MORTGAGE COMPANY\n'
-            '\u2022 Volume 10,675 vs OI 4,357 \u2014 2.5x the open interest in a SINGLE DAY\n'
-            '\u2022 89% ask side \u2014 pure aggression on a penny option expiring TOMORROW\n'
-            '\u2022 Stock at $18.68 needs to gap up 10%+ overnight to even be worth something\n'
-            '\u2022 Mortgage rates still elevated, housing market sluggish \u2014 no fundamental catalyst\n'
-            '\u2022 This is someone betting $84K that a mortgage lender moons in 24 hours'
+            '\u2022 IBRX is up 33% TODAY and you\'re chasing it with 2-day calls\n'
+            '\u2022 SWEEP order detected on UW \u2014 someone hit multiple exchanges simultaneously\n'
+            '\u2022 95,888 call contracts traded vs 25,048 puts \u2014 $10.2M in call premium on a biotech\n'
+            '\u2022 Stock went from $6.06 to $8.12 intraday \u2014 you\'re buying at the top of a 33% rip\n'
+            '\u2022 Earnings on 3/2 with EXPECTED move of 27% \u2014 but that\'s AFTER your calls expire\n'
+            '\u2022 52W high is $8.28 \u2014 stock is pennies from ATH and you want MORE'
         ),
         inline=False
     )
     embed.add_field(
         name='\U0001f911 Degen Math',
         value=(
-            '\u2022 Entry: ~$0.09/contract ($9 per contract)\n'
-            '\u2022 Breakeven: RKT hits $20.59 (+10.2%) by tomorrow\n'
-            '\u2022 **If RKT hits $21.50:** $1.00/contract = 11x \U0001f680\n'
-            '\u2022 **If RKT hits $22.00:** $1.50/contract = 16.7x \U0001f680\U0001f680\n'
-            '\u2022 9,291 contracts = someone yoloed $84K that Rocket Companies goes vertical overnight\n'
-            '\u2022 At $9 a contract this is cheaper than a Wendy\'s meal'
+            '\u2022 Entry: ~$0.20/contract ($20 per contract)\n'
+            '\u2022 Breakeven: IBRX hits $7.70 by Friday\n'
+            '\u2022 **If IBRX hits $8.50 (new ATH):** $1.00/contract = 5x \U0001f680\n'
+            '\u2022 **If IBRX hits $9.00:** $1.50/contract = 7.5x \U0001f680\n'
+            '\u2022 **If IBRX hits $10.00 (short squeeze territory):** $2.50/contract = 12.5x \U0001f680\U0001f680\n'
+            '\u2022 At $20 a contract this is literally cheaper than lunch'
         ),
         inline=False
     )
     embed.add_field(
         name='\U0001f525 News & Trend Context',
         value=(
-            '\u2022 CPI data dropping Feb 12 \u2014 hot print could tank rates and send mortgage stocks flying\n'
-            '\u2022 Fed rate cut hopes still alive \u2014 any dovish signal is rocket fuel for RKT\n'
-            '\u2022 RKT had another $20.50C block at $25K premium same day \u2014 repeat buyer\n'
-            '\u2022 Financials showing strength \u2014 BAC also had massive call flow (5,695 contracts)'
+            '\u2022 IBRX ripping 33% on heavy volume \u2014 possible FDA catalyst or data leak\n'
+            '\u2022 $12.7M total options premium today \u2014 massive for a $7.8B biotech\n'
+            '\u2022 Net premium +$1.4M bullish \u2014 smart money loading calls aggressively\n'
+            '\u2022 Earnings 3/2 with 27% expected move \u2014 but these calls expire BEFORE earnings\n'
+            '\u2022 Biotech momentum is contagious \u2014 one positive headline could extend the run'
         ),
         inline=False
     )
     embed.add_field(
         name='\u2622\ufe0f Risk Level',
-        value="**BEYOND EXTREME** \u2014 You're betting a mortgage company gaps up 10%+ overnight because one whale said so. 1 DTE on a deep OTM call. This is not investing. This is not even gambling. This is buying a lottery ticket and expecting it to hit.",
+        value="**BEYOND EXTREME** \u2014 You're chasing a 33% mover with 2-day expiration calls on a biotech. The stock already had its move. You're betting it goes ANOTHER 30%+ in 48 hours because some sweep orders told you to. This isn't investing. This isn't gambling. This is setting money on fire and hoping the ashes spell 'profit'.",
         inline=False
     )
-    embed.set_footer(text='Updated: Feb 12, 2026 \u2022 Source: UW Flow + Market Trends \u2022 Not financial advice \u2022 Pure degeneracy \u2022 DYOR')
+    embed.set_footer(text='Updated: Feb 18, 2026 \u2022 Source: UW Flow + Market Trends \u2022 Not financial advice \u2022 Pure degeneracy \u2022 DYOR')
     await ctx.send(embed=embed)
 
 # ============================================================
