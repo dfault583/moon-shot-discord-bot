@@ -1394,54 +1394,56 @@ async def ten_bagger(ctx):
     embed.add_field(
         name='\U0001f4c8 Trade Setup',
         value=(
-            '**Ticker:** WULF (TeraWulf Inc.)\n'
-            '**Contract:** $22 Call\n'
-            '**Expiration:** Mar 20, 2026\n'
-            '**Entry Price:** ~$0.59\n'
-            '**Type:** OTM Call (~37% out of the money)\n'
-            '**Cost:** ~$59 per contract'
+            '**Ticker:** JBLU (JetBlue Airways)\n'
+            '**Contract:** $7 Call\n'
+            '**Expiration:** Jun 18, 2026\n'
+            '**Entry Price:** ~$0.76\n'
+            '**Type:** OTM Call (~10.8% out of the money)\n'
+            '**Cost:** ~$76 per contract'
         ),
         inline=False
     )
     embed.add_field(
         name='\U0001f3af Why This Trade',
         value=(
-            '\u2022 UW Flow: 4,000 contracts bought on ask \u2014 $236K premium, 99% ask side\n'
-            '\u2022 Volume 4,080 vs OI 2,414 \u2014 massive new positioning\n'
-            '\u2022 Bitcoin mining + AI data center narrative is the hottest sector theme right now\n'
-            '\u2022 BTC holding strong above $97K \u2014 miners printing money\n'
-            '\u2022 36 DTE gives time for BTC breakout above $100K and WULF re-rating\n'
-            '\u2022 TeraWulf pivoting to HPC/AI data centers \u2014 dual revenue catalyst'
+            '\u2022 UW Flow: 20,000+ contracts bought across multiple 5K blocks \u2014 all on the ask side\n'
+            '\u2022 Call volume 49,548 vs put volume 1,165 \u2014 P/C ratio of 0.02 (insanely bullish)\n'
+            '\u2022 $2.7M in call premium today alone \u2014 massive institutional positioning\n'
+            '\u2022 Stock up 4%+ today on heavy volume \u2014 accumulation pattern\n'
+            '\u2022 120 DTE gives time through summer travel season \u2014 peak revenue catalyst\n'
+            '\u2022 Airline sector turnaround \u2014 travel demand at record highs, costs stabilizing'
         ),
         inline=False
     )
     embed.add_field(
         name='\U0001f4b0 10-Bagger Math',
         value=(
-            '\u2022 Entry: ~$0.59/contract ($59 per contract)\n'
-            '\u2022 Breakeven: WULF hits $22.59 (+40%) by Mar 20\n'
-            '\u2022 **10x Target:** WULF hits ~$27.90 \u2192 call worth ~$5.90 (10x) \U0001f680\n'
-            '\u2022 **If WULF hits $30 (prior highs):** call worth ~$8.00 (13.5x) \U0001f680\U0001f680\n'
-            '\u2022 BTC to $120K could send miners parabolic \u2014 WULF could see $35+ in a squeeze'
+            '\u2022 Entry: ~$0.76/contract ($76 per contract)\n'
+            '\u2022 Breakeven: JBLU hits $7.76 (+22.8%) by Jun 18\n'
+            '\u2022 **10x Target:** JBLU hits ~$14.60 \u2192 call worth ~$7.60 (10x) \U0001f680\n'
+            '\u2022 **If JBLU hits $12 (52W high area):** call worth ~$5.00 (6.6x) \U0001f680\n'
+            '\u2022 **If JBLU hits $15+ (analyst targets):** call worth ~$8.00 (10.5x) \U0001f680\U0001f680\n'
+            '\u2022 Summer travel + earnings 5/5 could send airlines parabolic'
         ),
         inline=False
     )
     embed.add_field(
         name='\U0001f525 News & Trend Context',
         value=(
-            '\u2022 Bitcoin hovering near ATH \u2014 any breakout sends miners flying\n'
-            '\u2022 AI data center demand exploding \u2014 WULF positioned as hybrid miner/HPC play\n'
-            '\u2022 MU, NVDA, SNDK dominating bullish flow \u2014 AI/compute theme strongest in market\n'
-            '\u2022 Crypto stocks showing relative strength \u2014 COIN net positive flow on UW'
+            '\u2022 52W range $3.34-$7.83 \u2014 stock near lows with room to run\n'
+            '\u2022 Summer 2026 bookings trending strong \u2014 airlines seeing record passenger loads\n'
+            '\u2022 Fuel costs declining \u2014 major margin tailwind for airlines\n'
+            '\u2022 JBLU restructuring plan in motion \u2014 cutting unprofitable routes, focusing on premium\n'
+            '\u2022 Multiple whale-size blocks all in same strike/expiry \u2014 coordinated smart money bet'
         ),
         inline=False
     )
     embed.add_field(
         name='\u26a0\ufe0f Risk Level',
-        value='**EXTREME** \u2014 OTM options expire worthless most of the time. WULF is volatile and tied to BTC price action. If Bitcoin dumps, this goes to zero. Only play with money you can afford to lose entirely.',
+        value='**EXTREME** \u2014 OTM options expire worthless most of the time. JBLU is a turnaround story that could fail. Airlines are cyclical and exposed to fuel costs, macro conditions, and competition. Only play with money you can afford to lose entirely.',
         inline=False
     )
-    embed.set_footer(text='Updated: Feb 12, 2026 \u2022 Source: UW Flow + Market Trends \u2022 Not financial advice \u2022 DYOR')
+    embed.set_footer(text='Updated: Feb 18, 2026 \u2022 Source: UW Flow + Market Trends \u2022 Not financial advice \u2022 DYOR')
     await ctx.send(embed=embed)
 
 # ============================================================
