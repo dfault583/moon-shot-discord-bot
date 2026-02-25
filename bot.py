@@ -197,8 +197,7 @@ def get_bars(symbol, alpaca_tf, yf_interval, start_date, end_date, yf_period=Non
     print(f"Alpaca returned no data for {symbol}, trying yfinance...")
     df = get_bars_yfinance(symbol, yf_interval, period=yf_period, start_date=start_date, end_date=end_date)
     if df is not None and len(df) > 0:
-        return df, 'yfinance'
-    return None, None
+        return df, 'yfinance'    return None, None
 
 def get_crypto_bars(symbol, yf_interval, period=None, start_date=None, end_date=None):
     """Get crypto data from yfinance."""
@@ -367,7 +366,7 @@ def _build_price_embed(ticker, symbol, is_crypto=False):
                 inline=False
             )
 
-        embed.set_footer(text=f'{asset_type} \u2022 {market_status}')
+        embed.set_footer(text=f'{asset_type} • {market_status}')
         return embed
     except Exception as e:
         print(f"Build price embed error: {e}")
@@ -397,8 +396,7 @@ def calculate_vwap(df, band_mult=1.0):
         t = tp.iloc[i]
         cum_vol += v
         cum_tp_vol += t * v
-        cum_tp2_vol += t * t * v
-        if cum_vol > 0:
+        cum_tp2_vol += t * t * v        if cum_vol > 0:
             vwap_val = cum_tp_vol / cum_vol
             vwap.iloc[i] = vwap_val
             variance = (cum_tp2_vol / cum_vol) - (vwap_val * vwap_val)
@@ -409,153 +407,82 @@ def calculate_vwap(df, band_mult=1.0):
     return vwap, upper_band, lower_band
 
 
-def calculate_true_range(df):
-    """Calculate True Range."""
-    tr = pd.DataFrame(index=df.index)
-    tr['hl'] = df['high'] - df['low']
-    tr['hc'] = (df['high'] - df['close'].shift(1)).abs()
-    tr['lc'] = (df['low'] - df['close'].shift(1)).abs()
-    return tr.max(axis=1)
+def calculate_support_resistance(df, left_bars=15, right_bars=15, volume_thresh=20):
+    """Calculate Support and Resistance levels with breaks (LuxAlgo style).
+    Uses pivot highs/lows to find S/R levels, marks breaks confirmed by volume.
+    """
+    n = len(df)
+    highs = df['high'].values
+    lows = df['low'].values
+    closes = df['close'].values
+    opens = df['open'].values
+    volumes = df['volume'].values
 
-def calculate_rma(series, period):
-    """Wilder's smoothing (RMA)."""
-    return series.ewm(alpha=1/period, min_periods=period, adjust=False).mean()
+    # Find pivot highs and pivot lows
+    pivot_high_vals = np.full(n, np.nan)
+    pivot_low_vals = np.full(n, np.nan)
 
-def calculate_supertrend_fib(df, atr_period=10, mult1=1.0, mult2=2.0, mult3=3.0):
-    """Calculate Fibonacci SuperTrend with 3 bands."""
-    hl2 = (df['high'] + df['low']) / 2
-    tr = calculate_true_range(df)
-    atr = calculate_rma(tr, atr_period)
-    
-    results = {}
-    for label, mult in [('upper', mult3), ('mid', mult2), ('lower', mult1)]:
-        upper_band = hl2 + (mult * atr)
-        lower_band = hl2 - (mult * atr)
-        st = pd.Series(index=df.index, dtype='float64')
-        direction = pd.Series(0, index=df.index, dtype='int64')
-        
-        for i in range(1, len(df)):
-            if pd.isna(atr.iloc[i]):
-                continue
-            
-            # Band clamping
-            if lower_band.iloc[i] < lower_band.iloc[i-1] and df['close'].iloc[i-1] > lower_band.iloc[i-1]:
-                lower_band.iloc[i] = lower_band.iloc[i-1]
-            if upper_band.iloc[i] > upper_band.iloc[i-1] and df['close'].iloc[i-1] < upper_band.iloc[i-1]:
-                upper_band.iloc[i] = upper_band.iloc[i-1]
-            
-            prev_dir = direction.iloc[i-1]
-            if prev_dir <= 0:
-                if df['close'].iloc[i] > upper_band.iloc[i]:
-                    direction.iloc[i] = 1
-                else:
-                    direction.iloc[i] = -1
-            else:
-                if df['close'].iloc[i] < lower_band.iloc[i]:
-                    direction.iloc[i] = -1
-                else:
-                    direction.iloc[i] = 1
-            
-            st.iloc[i] = lower_band.iloc[i] if direction.iloc[i] == 1 else upper_band.iloc[i]
-        
-        results[f'st_{label}'] = st
-        results[f'dir_{label}'] = direction
-    
-    return results
+    for i in range(left_bars, n - right_bars):
+        # Pivot high: highest high in window
+        is_ph = True
+        for j in range(i - left_bars, i + right_bars + 1):
+            if j != i and highs[j] >= highs[i]:
+                is_ph = False
+                break
+        if is_ph:
+            pivot_high_vals[i] = highs[i]
 
-def calculate_squeeze(df, bb_period=20, bb_mult=2.0, kc_period=20, kc_mult=1.5):
-    """Detect Bollinger Band squeeze inside Keltner Channels."""
-    # Bollinger Bands
-    bb_mid = df['close'].rolling(bb_period).mean()
-    bb_std = df['close'].rolling(bb_period).std()
-    bb_upper = bb_mid + bb_mult * bb_std
-    bb_lower = bb_mid - bb_mult * bb_std
-    
-    # Keltner Channels
-    tr = calculate_true_range(df)
-    kc_atr = calculate_rma(tr, kc_period)
-    kc_mid = df['close'].rolling(kc_period).mean()
-    kc_upper = kc_mid + kc_mult * kc_atr
-    kc_lower = kc_mid - kc_mult * kc_atr
-    
-    # Squeeze is on when BB is inside KC
-    squeeze_on = (bb_lower > kc_lower) & (bb_upper < kc_upper)
-    
-    # Momentum (close position relative to midline of Donchian channel vs BB midline)
-    highest = df['high'].rolling(bb_period).max()
-    lowest = df['low'].rolling(bb_period).min()
-    m1 = (highest + lowest) / 2
-    momentum = df['close'] - (m1 + bb_mid) / 2
-    
-    return squeeze_on, momentum
+        # Pivot low: lowest low in window
+        is_pl = True
+        for j in range(i - left_bars, i + right_bars + 1):
+            if j != i and lows[j] <= lows[i]:
+                is_pl = False
+                break
+        if is_pl:
+            pivot_low_vals[i] = lows[i]
 
-def calculate_rsi(df, period=14):
-    """Calculate RSI."""
-    delta = df['close'].diff()
-    gain = delta.where(delta > 0, 0.0)
-    loss = (-delta).where(delta < 0, 0.0)
-    avg_gain = calculate_rma(gain, period)
-    avg_loss = calculate_rma(loss, period)
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
+    # Forward-fill pivot values (Pine's fixnan equivalent), shifted by 1
+    resistance = pd.Series(pivot_high_vals).shift(1).ffill().values
+    support = pd.Series(pivot_low_vals).shift(1).ffill().values
 
-def detect_divergence(df, rsi, lookback=14):
-    """Detect RSI divergence vs price."""
-    divergence = pd.Series(0, index=df.index, dtype='int64')
-    for i in range(lookback, len(df)):
-        # Bearish divergence: price higher high, RSI lower high
-        price_window = df['close'].iloc[i-lookback:i+1]
-        rsi_window = rsi.iloc[i-lookback:i+1]
-        if (df['close'].iloc[i] > price_window.iloc[:-1].max() and 
-            rsi.iloc[i] < rsi_window.iloc[:-1].max()):
-            divergence.iloc[i] = -1
-        # Bullish divergence: price lower low, RSI higher low
-        elif (df['close'].iloc[i] < price_window.iloc[:-1].min() and 
-              rsi.iloc[i] > rsi_window.iloc[:-1].min()):
-            divergence.iloc[i] = 1
-    return divergence
+    # Volume oscillator: EMA(5) vs EMA(10)
+    vol_series = pd.Series(volumes, dtype='float64')
+    vol_short = vol_series.ewm(span=5, adjust=False).mean()
+    vol_long = vol_series.ewm(span=10, adjust=False).mean()
+    vol_osc = (100 * (vol_short - vol_long) / vol_long).values
 
-def calculate_b4_signals(df):
-    """Calculate all B4-style indicator components."""
-    # Fibonacci SuperTrend
-    st = calculate_supertrend_fib(df, atr_period=10, mult1=1.0, mult2=2.0, mult3=3.0)
-    
-    # Squeeze
-    squeeze_on, squeeze_momentum = calculate_squeeze(df)
-    
-    # RSI
-    rsi = calculate_rsi(df, period=14)
-    
-    # Divergence
-    divergence = detect_divergence(df, rsi)
-    
-    # Trend direction based on midline supertrend
-    trend_dir = st['dir_mid']
-    
-    # Buy/Sell signals: trend flip on mid supertrend confirmed by RSI
-    buy_signals = pd.Series(False, index=df.index)
-    sell_signals = pd.Series(False, index=df.index)
-    
-    for i in range(1, len(df)):
-        # Buy: direction flips to bullish
-        if trend_dir.iloc[i] == 1 and trend_dir.iloc[i-1] == -1:
-            if pd.notna(rsi.iloc[i]) and rsi.iloc[i] > 40:
-                buy_signals.iloc[i] = True
-        # Sell: direction flips to bearish
-        elif trend_dir.iloc[i] == -1 and trend_dir.iloc[i-1] == 1:
-            if pd.notna(rsi.iloc[i]) and rsi.iloc[i] < 60:
-                sell_signals.iloc[i] = True
-    
+    # Detect breaks
+    break_down = []  # support breaks
+    break_up = []    # resistance breaks
+    bull_wick = []
+    bear_wick = []
+
+    for i in range(1, n):
+        if np.isnan(support[i]) or np.isnan(resistance[i]):
+            continue
+        # Break below support with volume
+        if closes[i] < support[i] and closes[i - 1] >= support[i]:
+            is_bear_wick = (opens[i] - closes[i]) < (highs[i] - opens[i])
+            if is_bear_wick:
+                bear_wick.append(i)
+            elif vol_osc[i] > volume_thresh:
+                break_down.append(i)
+        # Break above resistance with volume
+        if closes[i] > resistance[i] and closes[i - 1] <= resistance[i]:
+            is_bull_wick = (opens[i] - lows[i]) > (closes[i] - opens[i])
+            if is_bull_wick:
+                bull_wick.append(i)
+            elif vol_osc[i] > volume_thresh:
+                break_up.append(i)
+
     return {
-        'st_upper': st['st_upper'], 'st_mid': st['st_mid'], 'st_lower': st['st_lower'],
-        'dir_upper': st['dir_upper'], 'dir_mid': st['dir_mid'], 'dir_lower': st['dir_lower'],
-        'squeeze_on': squeeze_on, 'squeeze_momentum': squeeze_momentum,
-        'rsi': rsi, 'divergence': divergence,
-        'buy': buy_signals, 'sell': sell_signals,
-        'trend_dir': trend_dir,
+        'resistance': resistance,
+        'support': support,
+        'break_down': break_down,
+        'break_up': break_up,
+        'bull_wick': bull_wick,
+        'bear_wick': bear_wick,
     }
-
 
 
 def calculate_volume_profile(df, num_bins=100):
@@ -668,8 +595,7 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             y_on_right=True,
             rc={
                 'font.size': 11,
-                'axes.labelcolor': TV_TEXT,
-                'axes.edgecolor': TV_BORDER,
+                'axes.labelcolor': TV_TEXT,                'axes.edgecolor': TV_BORDER,
                 'xtick.color': TV_TEXT,
                 'ytick.color': TV_TEXT,
                 'ytick.labelsize': 12,
@@ -806,7 +732,57 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
                 handlelength=1.5
             )
 
-        # === Trend Lines (removed) ===
+        # === Support & Resistance Levels with Breaks ===
+        try:
+            sr = calculate_support_resistance(df, left_bars=15, right_bars=15, volume_thresh=20)
+            price_ax = axes[0]
+            n = len(df)
+            offset = 15 + 1  # rightBars + 1, matching Pine offset
+
+            # Draw resistance line (red)
+            res_series = sr['resistance']
+            for i in range(offset + 1, n):
+                if not np.isnan(res_series[i]) and not np.isnan(res_series[i - 1]):
+                    if res_series[i] == res_series[i - 1]:
+                        price_ax.plot([i - offset - 1, i - offset], [res_series[i - 1], res_series[i]],
+                                      color='#FF0000', linewidth=2, alpha=0.85, zorder=4)
+
+            # Draw support line (blue)
+            sup_series = sr['support']
+            for i in range(offset + 1, n):
+                if not np.isnan(sup_series[i]) and not np.isnan(sup_series[i - 1]):
+                    if sup_series[i] == sup_series[i - 1]:
+                        price_ax.plot([i - offset - 1, i - offset], [sup_series[i - 1], sup_series[i]],
+                                      color='#233dee', linewidth=2, alpha=0.85, zorder=4)
+
+            # Break markers
+            for idx in sr['break_down']:
+                price_ax.annotate('B', xy=(idx, df['high'].iloc[idx]),
+                                  fontsize=7, fontweight='bold', color='white',
+                                  ha='center', va='bottom',
+                                  bbox=dict(boxstyle='round,pad=0.2', fc='#ff1744', ec='none', alpha=0.9),
+                                  zorder=6)
+            for idx in sr['break_up']:
+                price_ax.annotate('B', xy=(idx, df['low'].iloc[idx]),
+                                  fontsize=7, fontweight='bold', color='white',
+                                  ha='center', va='top',
+                                  bbox=dict(boxstyle='round,pad=0.2', fc='#00e676', ec='none', alpha=0.9),
+                                  zorder=6)
+            for idx in sr['bear_wick']:
+                price_ax.annotate('BW', xy=(idx, df['high'].iloc[idx]),
+                                  fontsize=6, fontweight='bold', color='white',
+                                  ha='center', va='bottom',
+                                  bbox=dict(boxstyle='round,pad=0.2', fc='#ff1744', ec='none', alpha=0.9),
+                                  zorder=6)
+            for idx in sr['bull_wick']:
+                price_ax.annotate('BW', xy=(idx, df['low'].iloc[idx]),
+                                  fontsize=6, fontweight='bold', color='white',
+                                  ha='center', va='top',
+                                  bbox=dict(boxstyle='round,pad=0.2', fc='#00e676', ec='none', alpha=0.9),
+                                  zorder=6)
+        except Exception as e:
+            print(f"S/R error: {e}")
+
         fig.savefig(buf, dpi=150, bbox_inches='tight', facecolor=TV_BG, edgecolor='none')
         plt.close(fig)
         buf.seek(0)
@@ -828,44 +804,70 @@ async def help_command(ctx):
     embed.add_field(
         name='Stock Charts',
         value=(
-            '**!cm SYMBOL** \u2014 Monthly chart (2 years)\n'
-            '**!cw SYMBOL** \u2014 Weekly chart (1 year)\n'
-            '**!cd SYMBOL** \u2014 Daily chart (3 months)\n'
-            '**!ch SYMBOL** \u2014 Hourly chart (5 days)\n'
-            '**!c1m SYMBOL** \u2014 1 min chart (today)\n'
-            '**!c5m SYMBOL** \u2014 5 min chart (today)\n'
-            '**!c15m SYMBOL** \u2014 15 min chart (today)\n'
-            '**!c30m SYMBOL** \u2014 30 min chart (today)'
+            '**!cm SYMBOL** — Monthly chart (2 years)
+'
+            '**!cw SYMBOL** — Weekly chart (1 year)
+'
+            '**!cd SYMBOL** — Daily chart (3 months)
+'
+            '**!ch SYMBOL** — Hourly chart (5 days)
+'
+            '**!c1m SYMBOL** — 1 min chart (today)
+'
+            '**!c5m SYMBOL** — 5 min chart (today)
+'
+            '**!c15m SYMBOL** — 15 min chart (today)
+'
+            '**!c30m SYMBOL** — 30 min chart (today)'
         ),
         inline=False
     )
     embed.add_field(
         name='Crypto Charts',
         value=(
-            '**!ccm SYMBOL** \u2014 Monthly chart (2 years)\n'
-            '**!ccw SYMBOL** \u2014 Weekly chart (1 year)\n'
-            '**!ccd SYMBOL** \u2014 Daily chart (3 months)\n'
-            '**!cch SYMBOL** \u2014 Hourly chart (5 days)\n'
-            '**!cc1m SYMBOL** \u2014 1 min chart (today)\n'
-            '**!cc5m SYMBOL** \u2014 5 min chart (today)\n'
-            '**!cc15m SYMBOL** \u2014 15 min chart (today)\n'
-            '**!cc30m SYMBOL** \u2014 30 min chart (today)\n'
-            '\nExamples: !cc BTC, !ccw ETH, !cch SOL'
+            '**!ccm SYMBOL** — Monthly chart (2 years)
+'
+            '**!ccw SYMBOL** — Weekly chart (1 year)
+'
+            '**!ccd SYMBOL** — Daily chart (3 months)
+'
+            '**!cch SYMBOL** — Hourly chart (5 days)
+'
+            '**!cc1m SYMBOL** — 1 min chart (today)
+'
+            '**!cc5m SYMBOL** — 5 min chart (today)
+'
+            '**!cc15m SYMBOL** — 15 min chart (today)
+'
+            '**!cc30m SYMBOL** — 30 min chart (today)
+'
+            '
+Examples: !cc BTC, !ccw ETH, !cch SOL'
         ),
         inline=False
     )
     embed.add_field(
         name='Futures Charts',
         value=(
-            '**!fm SYMBOL** \u2014 Monthly chart (2 years)\n'
-            '**!fw SYMBOL** \u2014 Weekly chart (1 year)\n'
-            '**!fd SYMBOL** \u2014 Daily chart (3 months)\n'
-            '**!fh SYMBOL** \u2014 Hourly chart (5 days)\n'
-            '**!f1m SYMBOL** \u2014 1 min chart (today)\n'
-            '**!f5m SYMBOL** \u2014 5 min chart (today)\n'
-            '**!f15m SYMBOL** \u2014 15 min chart (today)\n'
-            '**!f30m SYMBOL** \u2014 30 min chart (today)\n'
-            '\nSymbols: ES, NQ, YM, RTY, CL, GC, SI, NG, VIX, DXY, ZB, 6E & more\n'
+            '**!fm SYMBOL** — Monthly chart (2 years)
+'
+            '**!fw SYMBOL** — Weekly chart (1 year)
+'
+            '**!fd SYMBOL** — Daily chart (3 months)
+'
+            '**!fh SYMBOL** — Hourly chart (5 days)
+'
+            '**!f1m SYMBOL** — 1 min chart (today)
+'
+            '**!f5m SYMBOL** — 5 min chart (today)
+'
+            '**!f15m SYMBOL** — 15 min chart (today)
+'
+            '**!f30m SYMBOL** — 30 min chart (today)
+'
+            '
+Symbols: ES, NQ, YM, RTY, CL, GC, SI, NG, VIX, DXY, ZB, 6E & more
+'
             'Examples: !fd ES, !fh NQ, !f5m GOLD'
         ),
         inline=False
@@ -873,25 +875,30 @@ async def help_command(ctx):
     embed.add_field(
         name='Price Check',
         value=(
-            '**!p / !price SYMBOL** \u2014 Quick price check (stocks & crypto)\n'
-            'Shows current price, change, pre-market/after-hours data\n'
+            '**!p / !price SYMBOL** — Quick price check (stocks & crypto)
+'
+            'Shows current price, change, pre-market/after-hours data
+'
             'Example: !p AAPL, !p BTC, !p TSLA'
         ),
         inline=False
     )
     embed.add_field(
         name='Overlays',
-        value='SMA 20 / 50 / 200 + VWAP (minute charts only) + Volume Profile (POC, Value Area)',
+        value='SMA 20 / 50 / 200 + VWAP (minute charts only) + Support & Resistance + Volume Profile (POC, Value Area)',
         inline=False
     )
     embed.add_field(
         name='Data',
-        value='Stocks: NYSE, NASDAQ & OTC (Alpaca + Yahoo Finance)\nCrypto: BTC, ETH, SOL, XRP, DOGE, ADA, and 30+ more via Yahoo Finance',
+        value='Stocks: NYSE, NASDAQ & OTC (Alpaca + Yahoo Finance)
+Crypto: BTC, ETH, SOL, XRP, DOGE, ADA, and 30+ more via Yahoo Finance',
         inline=False
     )
     embed.add_field(
         name='Options',
-        value='**!10bagger** \u2014 Current high-risk/high-reward option trade pick\n**!retardspecial** \u2014 The most degenerate trade imaginable\n**!JOINIS** \u2014 Top 3 highest probability call plays (Unusual Whales flow)',
+        value='**!10bagger** — Current high-risk/high-reward option trade pick
+**!retardspecial** — The most degenerate trade imaginable
+**!JOINIS** — Top 3 highest probability call plays (Unusual Whales flow)',
         inline=False
     )
     embed.set_footer(text='Default stock: AAPL | Default crypto: BTC')
@@ -1302,63 +1309,82 @@ async def on_ready():
 async def ten_bagger(ctx):
     """Show the current high-risk high-reward option trade pick."""
     embed = discord.Embed(
-        title='\U0001f680 10-Bagger Option Play \U0001f680',
+        title='U0001f680 10-Bagger Option Play U0001f680',
         description='High-risk, high-reward option trade pick based on unusual options flow & current market trends. **This is NOT financial advice. Do your own research.**',
         color=0xffeb3b
     )
     embed.add_field(
-        name='\U0001f4c8 Trade Setup',
+        name='U0001f4c8 Trade Setup',
         value=(
-            '**Ticker:** JBLU (JetBlue Airways)\n'
-            '**Contract:** $7 Call\n'
-            '**Expiration:** Jun 18, 2026\n'
-            '**Entry Price:** ~$0.76\n'
-            '**Type:** OTM Call (~10.8% out of the money)\n'
+            '**Ticker:** JBLU (JetBlue Airways)
+'
+            '**Contract:** $7 Call
+'
+            '**Expiration:** Jun 18, 2026
+'
+            '**Entry Price:** ~$0.76
+'
+            '**Type:** OTM Call (~10.8% out of the money)
+'
             '**Cost:** ~$76 per contract'
         ),
         inline=False
     )
     embed.add_field(
-        name='\U0001f3af Why This Trade',
+        name='U0001f3af Why This Trade',
         value=(
-            '\u2022 UW Flow: 20,000+ contracts bought across multiple 5K blocks \u2014 all on the ask side\n'
-            '\u2022 Call volume 49,548 vs put volume 1,165 \u2014 P/C ratio of 0.02 (insanely bullish)\n'
-            '\u2022 $2.7M in call premium today alone \u2014 massive institutional positioning\n'
-            '\u2022 Stock up 4%+ today on heavy volume \u2014 accumulation pattern\n'
-            '\u2022 120 DTE gives time through summer travel season \u2014 peak revenue catalyst\n'
-            '\u2022 Airline sector turnaround \u2014 travel demand at record highs, costs stabilizing'
+            '• UW Flow: 20,000+ contracts bought across multiple 5K blocks — all on the ask side
+'
+            '• Call volume 49,548 vs put volume 1,165 — P/C ratio of 0.02 (insanely bullish)
+'
+            '• $2.7M in call premium today alone — massive institutional positioning
+'
+            '• Stock up 4%+ today on heavy volume — accumulation pattern
+'
+            '• 120 DTE gives time through summer travel season — peak revenue catalyst
+'
+            '• Airline sector turnaround — travel demand at record highs, costs stabilizing'
         ),
         inline=False
     )
     embed.add_field(
-        name='\U0001f4b0 10-Bagger Math',
+        name='U0001f4b0 10-Bagger Math',
         value=(
-            '\u2022 Entry: ~$0.76/contract ($76 per contract)\n'
-            '\u2022 Breakeven: JBLU hits $7.76 (+22.8%) by Jun 18\n'
-            '\u2022 **10x Target:** JBLU hits ~$14.60 \u2192 call worth ~$7.60 (10x) \U0001f680\n'
-            '\u2022 **If JBLU hits $12 (52W high area):** call worth ~$5.00 (6.6x) \U0001f680\n'
-            '\u2022 **If JBLU hits $15+ (analyst targets):** call worth ~$8.00 (10.5x) \U0001f680\U0001f680\n'
-            '\u2022 Summer travel + earnings 5/5 could send airlines parabolic'
+            '• Entry: ~$0.76/contract ($76 per contract)
+'
+            '• Breakeven: JBLU hits $7.76 (+22.8%) by Jun 18
+'
+            '• **10x Target:** JBLU hits ~$14.60 → call worth ~$7.60 (10x) U0001f680
+'
+            '• **If JBLU hits $12 (52W high area):** call worth ~$5.00 (6.6x) U0001f680
+'
+            '• **If JBLU hits $15+ (analyst targets):** call worth ~$8.00 (10.5x) U0001f680U0001f680
+'
+            '• Summer travel + earnings 5/5 could send airlines parabolic'
         ),
         inline=False
     )
     embed.add_field(
-        name='\U0001f525 News & Trend Context',
+        name='U0001f525 News & Trend Context',
         value=(
-            '\u2022 52W range $3.34-$7.83 \u2014 stock near lows with room to run\n'
-            '\u2022 Summer 2026 bookings trending strong \u2014 airlines seeing record passenger loads\n'
-            '\u2022 Fuel costs declining \u2014 major margin tailwind for airlines\n'
-            '\u2022 JBLU restructuring plan in motion \u2014 cutting unprofitable routes, focusing on premium\n'
-            '\u2022 Multiple whale-size blocks all in same strike/expiry \u2014 coordinated smart money bet'
+            '• 52W range $3.34-$7.83 — stock near lows with room to run
+'
+            '• Summer 2026 bookings trending strong — airlines seeing record passenger loads
+'
+            '• Fuel costs declining — major margin tailwind for airlines
+'
+            '• JBLU restructuring plan in motion — cutting unprofitable routes, focusing on premium
+'
+            '• Multiple whale-size blocks all in same strike/expiry — coordinated smart money bet'
         ),
         inline=False
     )
     embed.add_field(
-        name='\u26a0\ufe0f Risk Level',
-        value='**EXTREME** \u2014 OTM options expire worthless most of the time. JBLU is a turnaround story that could fail. Airlines are cyclical and exposed to fuel costs, macro conditions, and competition. Only play with money you can afford to lose entirely.',
+        name='⚠️ Risk Level',
+        value='**EXTREME** — OTM options expire worthless most of the time. JBLU is a turnaround story that could fail. Airlines are cyclical and exposed to fuel costs, macro conditions, and competition. Only play with money you can afford to lose entirely.',
         inline=False
     )
-    embed.set_footer(text='Updated: Feb 18, 2026 \u2022 Source: UW Flow + Market Trends \u2022 Not financial advice \u2022 DYOR')
+    embed.set_footer(text='Updated: Feb 18, 2026 • Source: UW Flow + Market Trends • Not financial advice • DYOR')
     await ctx.send(embed=embed)
 
 # ============================================================
@@ -1368,64 +1394,84 @@ async def ten_bagger(ctx):
 async def retard_special(ctx):
     """The most degenerate option trade imaginable."""
     embed = discord.Embed(
-        title='\U0001f921 Retard Special \U0001f921',
+        title='U0001f921 Retard Special U0001f921',
         description='The absolute most degenerate trade possible. **This is NOT financial advice. This is financial self-harm.**',
         color=0xff0000
     )
     embed.add_field(
-        name='\U0001f4a5 The Play',
+        name='U0001f4a5 The Play',
         value=(
-            '**Ticker:** IBRX (ImmunityBio)\n'
-            '**Contract:** $7.50 Call\n'
-            '**Expiration:** Feb 20, 2026\n'
-            '**Entry Price:** ~$0.20\n'
-            '**Type:** OTM Call on a stock already up 33% today\n'
-            '**Cost:** $20 per contract\n'
+            '**Ticker:** IBRX (ImmunityBio)
+'
+            '**Contract:** $7.50 Call
+'
+            '**Expiration:** Feb 20, 2026
+'
+            '**Entry Price:** ~$0.20
+'
+            '**Type:** OTM Call on a stock already up 33% today
+'
+            '**Cost:** $20 per contract
+'
             '**DTE:** 2 DAYS'
         ),
         inline=False
     )
     embed.add_field(
-        name='\U0001f4a8 Why This Is Insane',
+        name='U0001f4a8 Why This Is Insane',
         value=(
-            '\u2022 IBRX is up 33% TODAY and you\'re chasing it with 2-day calls\n'
-            '\u2022 SWEEP order detected on UW \u2014 someone hit multiple exchanges simultaneously\n'
-            '\u2022 95,888 call contracts traded vs 25,048 puts \u2014 $10.2M in call premium on a biotech\n'
-            '\u2022 Stock went from $6.06 to $8.12 intraday \u2014 you\'re buying at the top of a 33% rip\n'
-            '\u2022 Earnings on 3/2 with EXPECTED move of 27% \u2014 but that\'s AFTER your calls expire\n'
-            '\u2022 52W high is $8.28 \u2014 stock is pennies from ATH and you want MORE'
+            '• IBRX is up 33% TODAY and you're chasing it with 2-day calls
+'
+            '• SWEEP order detected on UW — someone hit multiple exchanges simultaneously
+'
+            '• 95,888 call contracts traded vs 25,048 puts — $10.2M in call premium on a biotech
+'
+            '• Stock went from $6.06 to $8.12 intraday — you're buying at the top of a 33% rip
+'
+            '• Earnings on 3/2 with EXPECTED move of 27% — but that's AFTER your calls expire
+'
+            '• 52W high is $8.28 — stock is pennies from ATH and you want MORE'
         ),
         inline=False
     )
     embed.add_field(
-        name='\U0001f911 Degen Math',
+        name='U0001f911 Degen Math',
         value=(
-            '\u2022 Entry: ~$0.20/contract ($20 per contract)\n'
-            '\u2022 Breakeven: IBRX hits $7.70 by Friday\n'
-            '\u2022 **If IBRX hits $8.50 (new ATH):** $1.00/contract = 5x \U0001f680\n'
-            '\u2022 **If IBRX hits $9.00:** $1.50/contract = 7.5x \U0001f680\n'
-            '\u2022 **If IBRX hits $10.00 (short squeeze territory):** $2.50/contract = 12.5x \U0001f680\U0001f680\n'
-            '\u2022 At $20 a contract this is literally cheaper than lunch'
+            '• Entry: ~$0.20/contract ($20 per contract)
+'
+            '• Breakeven: IBRX hits $7.70 by Friday
+'
+            '• **If IBRX hits $8.50 (new ATH):** $1.00/contract = 5x U0001f680
+'
+            '• **If IBRX hits $9.00:** $1.50/contract = 7.5x U0001f680
+'
+            '• **If IBRX hits $10.00 (short squeeze territory):** $2.50/contract = 12.5x U0001f680U0001f680
+'
+            '• At $20 a contract this is literally cheaper than lunch'
         ),
         inline=False
     )
     embed.add_field(
-        name='\U0001f525 News & Trend Context',
+        name='U0001f525 News & Trend Context',
         value=(
-            '\u2022 IBRX ripping 33% on heavy volume \u2014 possible FDA catalyst or data leak\n'
-            '\u2022 $12.7M total options premium today \u2014 massive for a $7.8B biotech\n'
-            '\u2022 Net premium +$1.4M bullish \u2014 smart money loading calls aggressively\n'
-            '\u2022 Earnings 3/2 with 27% expected move \u2014 but these calls expire BEFORE earnings\n'
-            '\u2022 Biotech momentum is contagious \u2014 one positive headline could extend the run'
+            '• IBRX ripping 33% on heavy volume — possible FDA catalyst or data leak
+'
+            '• $12.7M total options premium today — massive for a $7.8B biotech
+'
+            '• Net premium +$1.4M bullish — smart money loading calls aggressively
+'
+            '• Earnings 3/2 with 27% expected move — but these calls expire BEFORE earnings
+'
+            '• Biotech momentum is contagious — one positive headline could extend the run'
         ),
         inline=False
     )
     embed.add_field(
-        name='\u2622\ufe0f Risk Level',
-        value="**BEYOND EXTREME** \u2014 You're chasing a 33% mover with 2-day expiration calls on a biotech. The stock already had its move. You're betting it goes ANOTHER 30%+ in 48 hours because some sweep orders told you to. This isn't investing. This isn't gambling. This is setting money on fire and hoping the ashes spell 'profit'.",
+        name='☢️ Risk Level',
+        value="**BEYOND EXTREME** — You're chasing a 33% mover with 2-day expiration calls on a biotech. The stock already had its move. You're betting it goes ANOTHER 30%+ in 48 hours because some sweep orders told you to. This isn't investing. This isn't gambling. This is setting money on fire and hoping the ashes spell 'profit'.",
         inline=False
     )
-    embed.set_footer(text='Updated: Feb 18, 2026 \u2022 Source: UW Flow + Market Trends \u2022 Not financial advice \u2022 Pure degeneracy \u2022 DYOR')
+    embed.set_footer(text='Updated: Feb 18, 2026 • Source: UW Flow + Market Trends • Not financial advice • Pure degeneracy • DYOR')
     await ctx.send(embed=embed)
 
 # ============================================================
@@ -1435,70 +1481,94 @@ async def retard_special(ctx):
 async def joinis(ctx):
     """Top 3 highest probability single-leg call trades from UW flow."""
     embed = discord.Embed(
-        title='\U0001f3af JOINIS \u2014 Top 3 High Probability Calls \U0001f3af',
+        title='U0001f3af JOINIS — Top 3 High Probability Calls U0001f3af',
         description='Highest conviction single-leg call plays sourced from Unusual Whales flow data + current market trends. **This is NOT financial advice. Do your own research.**',
         color=0x26a69a
     )
     # Trade 1: NCLH
     embed.add_field(
-        name='\U0001f7e2 #1 \u2014 NCLH (Norwegian Cruise Line) $23.5C 02/20',
+        name='U0001f7e2 #1 — NCLH (Norwegian Cruise Line) $23.5C 02/20',
         value=(
-            '**Entry:** ~$0.51 ($51/contract)\n'
-            '**DTE:** 8 days \u2022 **Stock:** $22.62 \u2022 **Only 3.9% OTM**\n'
-            '**UW Signal:** 4,272 contracts bought on ask \u2022 $218K premium \u2022 99% ask\n'
-            '**Volume:** 4,300 vs OI 403 \u2014 10x the open interest in new buying\n'
-            '**Thesis:** Travel/leisure sector strong, barely OTM, massive institutional size\n'
-            '**News:** Consumer spending resilient, cruise bookings at record highs for 2026\n'
+            '**Entry:** ~$0.51 ($51/contract)
+'
+            '**DTE:** 8 days • **Stock:** $22.62 • **Only 3.9% OTM**
+'
+            '**UW Signal:** 4,272 contracts bought on ask • $218K premium • 99% ask
+'
+            '**Volume:** 4,300 vs OI 403 — 10x the open interest in new buying
+'
+            '**Thesis:** Travel/leisure sector strong, barely OTM, massive institutional size
+'
+            '**News:** Consumer spending resilient, cruise bookings at record highs for 2026
+'
             '**Breakeven:** NCLH hits $24.01 (+6.1%) by Feb 20'
         ),
         inline=False
     )
     # Trade 2: CART
     embed.add_field(
-        name='\U0001f7e2 #2 \u2014 CART (Maplebear/Instacart) $35C 02/20',
+        name='U0001f7e2 #2 — CART (Maplebear/Instacart) $35C 02/20',
         value=(
-            '**Entry:** ~$1.04 ($104/contract)\n'
-            '**DTE:** 8 days \u2022 **Stock:** $33.28 \u2022 **Only 5.2% OTM**\n'
-            '**UW Signal:** 1,000 contracts bought on ask \u2022 $104K premium \u2022 100% ask\n'
-            '**Volume:** 1,000 vs OI 278 \u2014 3.6x open interest, all new\n'
-            '**Thesis:** E-commerce/delivery momentum, CART near breakout level\n'
-            '**News:** AI-powered grocery delivery growing, CART expanding ad revenue\n'
+            '**Entry:** ~$1.04 ($104/contract)
+'
+            '**DTE:** 8 days • **Stock:** $33.28 • **Only 5.2% OTM**
+'
+            '**UW Signal:** 1,000 contracts bought on ask • $104K premium • 100% ask
+'
+            '**Volume:** 1,000 vs OI 278 — 3.6x open interest, all new
+'
+            '**Thesis:** E-commerce/delivery momentum, CART near breakout level
+'
+            '**News:** AI-powered grocery delivery growing, CART expanding ad revenue
+'
             '**Breakeven:** CART hits $36.04 (+8.3%) by Feb 20'
         ),
         inline=False
     )
     # Trade 3: MU
     embed.add_field(
-        name='\U0001f7e2 #3 \u2014 MU (Micron Technology) $467.5C 02/20',
+        name='U0001f7e2 #3 — MU (Micron Technology) $467.5C 02/20',
         value=(
-            '**Entry:** ~$3.00 ($300/contract)\n'
-            '**DTE:** 8 days \u2022 **Stock:** $411.27 \u2022 **13.7% OTM**\n'
-            '**UW Signal:** #1 Net Impact on all of UW \u2014 most bullish flow in entire market\n'
-            '**Volume:** 135 \u2022 $34K premium \u2022 95% ask\n'
-            '**Thesis:** Memory chip demand exploding for AI, MU top net bullish impact across all stocks\n'
-            '**News:** HBM3E demand from NVDA surging, memory super-cycle narrative, AI buildout accelerating\n'
+            '**Entry:** ~$3.00 ($300/contract)
+'
+            '**DTE:** 8 days • **Stock:** $411.27 • **13.7% OTM**
+'
+            '**UW Signal:** #1 Net Impact on all of UW — most bullish flow in entire market
+'
+            '**Volume:** 135 • $34K premium • 95% ask
+'
+            '**Thesis:** Memory chip demand exploding for AI, MU top net bullish impact across all stocks
+'
+            '**News:** HBM3E demand from NVDA surging, memory super-cycle narrative, AI buildout accelerating
+'
             '**Breakeven:** MU hits $470.50 (+14.4%) by Feb 20'
         ),
         inline=False
     )
     embed.add_field(
-        name='\U0001f525 Market Trend Context',
+        name='U0001f525 Market Trend Context',
         value=(
-            '\u2022 **Top Bullish Flow (UW Net Impact):** MU, SNDK, NVDA, GOOGL, VRT, CRWV, META\n'
-            '\u2022 **Bearish Flow:** MDB, AVGO, AMD, TSM, MSTR, MSFT, ADBE, TSLA\n'
-            '\u2022 SPY at $694 \u2014 market holding near highs despite CPI uncertainty\n'
-            '\u2022 AI/compute and travel/leisure are the strongest sector flows today'
+            '• **Top Bullish Flow (UW Net Impact):** MU, SNDK, NVDA, GOOGL, VRT, CRWV, META
+'
+            '• **Bearish Flow:** MDB, AVGO, AMD, TSM, MSTR, MSFT, ADBE, TSLA
+'
+            '• SPY at $694 — market holding near highs despite CPI uncertainty
+'
+            '• AI/compute and travel/leisure are the strongest sector flows today'
         ),
         inline=False
     )
     embed.add_field(
-        name='\u26a0\ufe0f Risk',
+        name='⚠️ Risk',
         value='All plays are OTM calls that can expire worthless. Only trade with money you can afford to lose. These are based on unusual options flow + market trends, not guaranteed outcomes.',
         inline=False
     )
-    embed.set_footer(text='Updated: Feb 12, 2026 \u2022 Source: Unusual Whales Flow + Market Trends \u2022 Not financial advice \u2022 DYOR')
+    embed.set_footer(text='Updated: Feb 12, 2026 • Source: Unusual Whales Flow + Market Trends • Not financial advice • DYOR')
     await ctx.send(embed=embed)
 
 bot.run(os.getenv('DISCORD_TOKEN'))
-
-# test
+        v = df['volume'].iloc[i]
+        t = tp.iloc[i]
+        cum_vol += v
+        cum_tp_vol += t * v
+        cum_tp2_vol += t * t * v
