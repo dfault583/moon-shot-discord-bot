@@ -185,7 +185,8 @@ def get_bars_yfinance(symbol, interval, period=None, start_date=None, end_date=N
         if df.index.tz is not None:
             df.index = df.index.tz_localize(None)
         return df
-    except Exception as e:        print(f"yfinance error for {symbol}: {e}")
+    except Exception as e:
+        print(f"yfinance error for {symbol}: {e}")
         return None
 
 def get_bars(symbol, alpaca_tf, yf_interval, start_date, end_date, yf_period=None):
@@ -559,7 +560,8 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
         daily_or_shorter = timeframe in intraday_tfs or timeframe == '1D'
         df['SMA20'] = df['close'].rolling(window=20).mean()
         df['SMA50'] = df['close'].rolling(window=50).mean()
-        if daily_or_shorter:            df['SMA200'] = df['close'].rolling(window=200).mean()
+        if daily_or_shorter:
+            df['SMA200'] = df['close'].rolling(window=200).mean()
         # Only calculate VWAP for intraday minute charts
         if timeframe in ('1m', '5m', '15m', '30m'):
             df['VWAP'], df['VWAP_UPPER'], df['VWAP_LOWER'] = calculate_vwap(df, band_mult=1.0)
@@ -1120,7 +1122,8 @@ async def crypto_hourly(ctx, symbol: str = 'BTC'):
         display_name = ticker.replace('-USD', '')
         await ctx.send(f"Generating hourly chart for {display_name}...")
         df = get_crypto_bars(symbol, '1h', period='1mo')
-        if df is None:            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
+        if df is None:
+            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
             return
         buf = make_chart(df, display_name, '1H', display_count=60, source='yfinance')
         if buf is None:
