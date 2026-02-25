@@ -1500,3 +1500,5 @@ async def joinis(ctx):
     await ctx.send(embed=embed)
 
 bot.run(os.getenv('DISCORD_TOKEN'))
+
+# test
