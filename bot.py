@@ -103,6 +103,7 @@ FUTURES_ALIASES = {
     '6B': '6B=F', 'POUND': '6B=F', 'GBP': '6B=F',
     'VIX': '^VIX', 'VX': 'VX=F',
 }
+
 FUTURES_DISPLAY_NAMES = {
     'ES=F': 'ES (S&P 500)', 'NQ=F': 'NQ (Nasdaq 100)', 'YM=F': 'YM (Dow)',
     'RTY=F': 'RTY (Russell 2000)', 'CL=F': 'CL (Crude Oil)', 'GC=F': 'GC (Gold)',
@@ -184,8 +185,7 @@ def get_bars_yfinance(symbol, interval, period=None, start_date=None, end_date=N
         if df.index.tz is not None:
             df.index = df.index.tz_localize(None)
         return df
-    except Exception as e:
-        print(f"yfinance error for {symbol}: {e}")
+    except Exception as e:        print(f"yfinance error for {symbol}: {e}")
         return None
 
 def get_bars(symbol, alpaca_tf, yf_interval, start_date, end_date, yf_period=None):
@@ -373,7 +373,6 @@ def _build_price_embed(ticker, symbol, is_crypto=False):
         import traceback
         traceback.print_exc()
         return None
-
 def calculate_vwap(df, band_mult=1.0):
     """Calculate VWAP with standard deviation bands, session-anchored."""
     tp = (df['high'] + df['low'] + df['close']) / 3
@@ -408,11 +407,18 @@ def calculate_vwap(df, band_mult=1.0):
     return vwap, upper_band, lower_band
 
 
-def calculate_support_resistance(df, left_bars=15, right_bars=15, volume_thresh=20):
+def calculate_support_resistance(df, left_bars=None, right_bars=None, volume_thresh=10):
     """Calculate Support and Resistance levels with breaks (LuxAlgo style).
     Uses pivot highs/lows to find S/R levels, marks breaks confirmed by volume.
+    Auto-scales pivot window based on dataset size.
     """
     n = len(df)
+    # Auto-scale pivot bars: ~10% of data, min 3, max 15
+    if left_bars is None:
+        left_bars = max(3, min(15, n // 10))
+    if right_bars is None:
+        right_bars = max(3, min(15, n // 10))
+
     highs = df['high'].values
     lows = df['low'].values
     closes = df['close'].values
@@ -442,9 +448,9 @@ def calculate_support_resistance(df, left_bars=15, right_bars=15, volume_thresh=
         if is_pl:
             pivot_low_vals[i] = lows[i]
 
-    # Forward-fill pivot values (Pine's fixnan equivalent), shifted by 1
-    resistance = pd.Series(pivot_high_vals).shift(1).ffill().values
-    support = pd.Series(pivot_low_vals).shift(1).ffill().values
+    # Forward-fill pivot values (Pine's fixnan equivalent)
+    resistance = pd.Series(pivot_high_vals).ffill().values
+    support = pd.Series(pivot_low_vals).ffill().values
 
     # Volume oscillator: EMA(5) vs EMA(10)
     vol_series = pd.Series(volumes, dtype='float64')
@@ -553,8 +559,7 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
         daily_or_shorter = timeframe in intraday_tfs or timeframe == '1D'
         df['SMA20'] = df['close'].rolling(window=20).mean()
         df['SMA50'] = df['close'].rolling(window=50).mean()
-        if daily_or_shorter:
-            df['SMA200'] = df['close'].rolling(window=200).mean()
+        if daily_or_shorter:            df['SMA200'] = df['close'].rolling(window=200).mean()
         # Only calculate VWAP for intraday minute charts
         if timeframe in ('1m', '5m', '15m', '30m'):
             df['VWAP'], df['VWAP_UPPER'], df['VWAP_LOWER'] = calculate_vwap(df, band_mult=1.0)
@@ -740,52 +745,62 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
 
         # === Support & Resistance Levels with Breaks ===
         try:
-            sr = calculate_support_resistance(df, left_bars=15, right_bars=15, volume_thresh=20)
-            price_ax = axes[0]
-            n = len(df)
-            offset = 15 + 1  # rightBars + 1, matching Pine offset
+            sr = calculate_support_resistance(df)
+            price_ax = axes[0]            n = len(df)
 
-            # Draw resistance line (red)
+            # Draw resistance as step line (red) - horizontal segments at each level
             res_series = sr['resistance']
-            for i in range(offset + 1, n):
-                if not np.isnan(res_series[i]) and not np.isnan(res_series[i - 1]):
-                    if res_series[i] == res_series[i - 1]:
-                        price_ax.plot([i - offset - 1, i - offset], [res_series[i - 1], res_series[i]],
-                                      color='#FF0000', linewidth=2, alpha=0.85, zorder=4)
+            res_x = []
+            res_y = []
+            for i in range(n):
+                if not np.isnan(res_series[i]):
+                    res_x.append(i)
+                    res_y.append(res_series[i])
+            if res_x:
+                price_ax.step(res_x, res_y, where='post', color='#FF0000',
+                              linewidth=1.5, alpha=0.8, zorder=4, linestyle='-')
 
-            # Draw support line (blue)
+            # Draw support as step line (blue)
             sup_series = sr['support']
-            for i in range(offset + 1, n):
-                if not np.isnan(sup_series[i]) and not np.isnan(sup_series[i - 1]):
-                    if sup_series[i] == sup_series[i - 1]:
-                        price_ax.plot([i - offset - 1, i - offset], [sup_series[i - 1], sup_series[i]],
-                                      color='#233dee', linewidth=2, alpha=0.85, zorder=4)
+            sup_x = []
+            sup_y = []
+            for i in range(n):
+                if not np.isnan(sup_series[i]):
+                    sup_x.append(i)
+                    sup_y.append(sup_series[i])
+            if sup_x:
+                price_ax.step(sup_x, sup_y, where='post', color='#2962ff',
+                              linewidth=1.5, alpha=0.8, zorder=4, linestyle='-')
 
-            # Break markers
+            # Break markers (B = volume-confirmed break, BW = wick rejection)
             for idx in sr['break_down']:
-                price_ax.annotate('B', xy=(idx, df['high'].iloc[idx]),
-                                  fontsize=7, fontweight='bold', color='white',
-                                  ha='center', va='bottom',
-                                  bbox=dict(boxstyle='round,pad=0.2', fc='#ff1744', ec='none', alpha=0.9),
-                                  zorder=6)
+                if idx < n:
+                    price_ax.annotate('B', xy=(idx, df['high'].iloc[idx]),
+                                      fontsize=7, fontweight='bold', color='white',
+                                      ha='center', va='bottom',
+                                      bbox=dict(boxstyle='round,pad=0.2', fc='#ff1744', ec='none', alpha=0.9),
+                                      zorder=6)
             for idx in sr['break_up']:
-                price_ax.annotate('B', xy=(idx, df['low'].iloc[idx]),
-                                  fontsize=7, fontweight='bold', color='white',
-                                  ha='center', va='top',
-                                  bbox=dict(boxstyle='round,pad=0.2', fc='#00e676', ec='none', alpha=0.9),
-                                  zorder=6)
+                if idx < n:
+                    price_ax.annotate('B', xy=(idx, df['low'].iloc[idx]),
+                                      fontsize=7, fontweight='bold', color='white',
+                                      ha='center', va='top',
+                                      bbox=dict(boxstyle='round,pad=0.2', fc='#00e676', ec='none', alpha=0.9),
+                                      zorder=6)
             for idx in sr['bear_wick']:
-                price_ax.annotate('BW', xy=(idx, df['high'].iloc[idx]),
-                                  fontsize=6, fontweight='bold', color='white',
-                                  ha='center', va='bottom',
-                                  bbox=dict(boxstyle='round,pad=0.2', fc='#ff1744', ec='none', alpha=0.9),
-                                  zorder=6)
+                if idx < n:
+                    price_ax.annotate('BW', xy=(idx, df['high'].iloc[idx]),
+                                      fontsize=6, fontweight='bold', color='white',
+                                      ha='center', va='bottom',
+                                      bbox=dict(boxstyle='round,pad=0.2', fc='#ff1744', ec='none', alpha=0.7),
+                                      zorder=6)
             for idx in sr['bull_wick']:
-                price_ax.annotate('BW', xy=(idx, df['low'].iloc[idx]),
-                                  fontsize=6, fontweight='bold', color='white',
-                                  ha='center', va='top',
-                                  bbox=dict(boxstyle='round,pad=0.2', fc='#00e676', ec='none', alpha=0.9),
-                                  zorder=6)
+                if idx < n:
+                    price_ax.annotate('BW', xy=(idx, df['low'].iloc[idx]),
+                                      fontsize=6, fontweight='bold', color='white',
+                                      ha='center', va='top',
+                                      bbox=dict(boxstyle='round,pad=0.2', fc='#00e676', ec='none', alpha=0.7),
+                                      zorder=6)
         except Exception as e:
             print(f"S/R error: {e}")
 
@@ -919,7 +934,6 @@ async def chart_weekly(ctx, symbol: str = 'AAPL'):
         await ctx.send(file=discord.File(buf, filename=f'{symbol}_weekly.png'))
     except Exception as e:
         await ctx.send(f"Error: {e}")
-
 @bot.command(name='cd')
 async def chart_daily(ctx, symbol: str = 'AAPL'):
     try:
@@ -1106,8 +1120,7 @@ async def crypto_hourly(ctx, symbol: str = 'BTC'):
         display_name = ticker.replace('-USD', '')
         await ctx.send(f"Generating hourly chart for {display_name}...")
         df = get_crypto_bars(symbol, '1h', period='1mo')
-        if df is None:
-            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
+        if df is None:            await ctx.send(f"No data found for {display_name}. Check the symbol and try again.")
             return
         buf = make_chart(df, display_name, '1H', display_count=60, source='yfinance')
         if buf is None:
@@ -1294,8 +1307,7 @@ async def ten_bagger(ctx):
             '**Ticker:** JBLU (JetBlue Airways)\n'
             '**Contract:** $7 Call\n'
             '**Expiration:** Jun 18, 2026\n'
-            '**Entry Price:** ~$0.76\n'
-            '**Type:** OTM Call (~10.8% out of the money)\n'
+            '**Entry Price:** ~$0.76\n'            '**Type:** OTM Call (~10.8% out of the money)\n'
             '**Cost:** ~$76 per contract'
         ),
         inline=False
@@ -1404,7 +1416,7 @@ async def retard_special(ctx):
     )
     embed.add_field(
         name='\u2622\ufe0f Risk Level',
-        value="**BEYOND EXTREME** \u2014 You\'re chasing a 33% mover with 2-day expiration calls on a biotech. The stock already had its move. You\'re betting it goes ANOTHER 30%+ in 48 hours because some sweep orders told you to. This isn\'t investing. This isn\'t gambling. This is setting money on fire and hoping the ashes spell \'profit\'.",
+        value="**BEYOND EXTREME** \u2014 You're chasing a 33% mover with 2-day expiration calls on a biotech. The stock already had its move. You're betting it goes ANOTHER 30%+ in 48 hours because some sweep orders told you to. This isn't investing. This isn't gambling. This is setting money on fire and hoping the ashes spell 'profit'.",
         inline=False
     )
     embed.set_footer(text='Updated: Feb 18, 2026 \u2022 Source: UW Flow + Market Trends \u2022 Not financial advice \u2022 Pure degeneracy \u2022 DYOR')
