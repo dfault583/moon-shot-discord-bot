@@ -623,7 +623,9 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
         df['SMA20'] = df['close'].rolling(window=20).mean()
         df['SMA50'] = df['close'].rolling(window=50).mean()
         df['SMA200'] = df['close'].rolling(window=200).mean()
-        df['VWAP'], df['VWAP_UPPER'], df['VWAP_LOWER'] = calculate_vwap(df, band_mult=1.0)
+        # Only calculate VWAP for intraday minute charts
+        if timeframe in ('1m', '5m', '15m', '30m'):
+            df['VWAP'], df['VWAP_UPPER'], df['VWAP_LOWER'] = calculate_vwap(df, band_mult=1.0)
         
         # Trim to display window
         if display_count and len(df) > display_count:
@@ -642,7 +644,7 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
         if df['SMA200'].notna().any():
             plots.append(mpf.make_addplot(df['SMA200'], color='#ab47bc', width=1.2, panel=0))
             legend_items.append(('SMA 200', '#ab47bc', '-'))
-        if df['VWAP'].notna().any():
+        if 'VWAP' in df.columns and df['VWAP'].notna().any():
             plots.append(mpf.make_addplot(df['VWAP'], color='#ffeb3b', width=1.2, panel=0))
             legend_items.append(('VWAP', '#ffeb3b', '-'))
 
@@ -879,7 +881,7 @@ async def help_command(ctx):
     )
     embed.add_field(
         name='Overlays',
-        value='SMA 20 / 50 / 200 + VWAP + Volume Profile (POC, Value Area)',
+        value='SMA 20 / 50 / 200 + VWAP (minute charts only) + Volume Profile (POC, Value Area)',
         inline=False
     )
     embed.add_field(
