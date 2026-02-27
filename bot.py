@@ -38,6 +38,28 @@ TV_BORDER = '#2a2e39'
 TV_VOL_UP = '#26a69a'
 TV_VOL_DOWN = '#ef5350'
 
+<<<<<<< HEAD
+def make_chart(df, symbol, timeframe):
+    try:
+                        df['SMA20'] = df['close'].rolling(window=20).mean()
+                        df['SMA50'] = df['close'].rolling(window=50).mean()
+                        df['SMA200'] = df['close'].rolling(window=200).mean()
+                        df['VWAP'] = calculate_vwap(df)
+                        mc = mpf.make_marketcolors(up='#00ff00', down='#ff00ff', edge='inherit', wick='inherit', volume={'up': '#00ff00', 'down': '#ff00ff'})
+                        s = mpf.make_mpf_style(marketcolors=mc, base_mpl_style='dark_background', facecolor='#0d1117', figcolor='#0d1117', gridstyle='-', gridcolor='#30363d', y_on_right=True)
+                        plots = [
+                            mpf.make_addplot(df['SMA20'], color='#00bfff', width=1),
+                            mpf.make_addplot(df['SMA50'], color='#ff1493', width=1),
+                            mpf.make_addplot(df['SMA200'], color='#ffa500', width=1.5),
+                            mpf.make_addplot(df['VWAP'], color='#ffff00', width=1, linestyle='--')
+                        ]
+                        buf = io.BytesIO()
+                        mpf.plot(df, type='candle', style=s, volume=True, addplot=plots, savefig=dict(fname=buf, dpi=150, bbox_inches='tight'), title=f'{symbol} - {timeframe}')
+                        buf.seek(0)
+                        return buf
+    except:
+        return None
+=======
 # Common crypto aliases
 CRYPTO_ALIASES = {
     'BTC': 'BTC-USD', 'BITCOIN': 'BTC-USD',
@@ -165,6 +187,7 @@ def get_bars_alpaca(symbol, timeframe, start_date, end_date):
     except Exception as e:
         print(f"Alpaca error for {symbol}: {e}")
         return None
+>>>>>>> 58799ca67a318aea4267fd6cc0b30cd1bdafebe3
 
 def get_bars_yfinance(symbol, interval, period=None, start_date=None, end_date=None):
     """Fallback to yfinance for OTC and unsupported tickers."""
@@ -748,7 +771,8 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
         # === Support & Resistance Levels with Breaks ===
         try:
             sr = calculate_support_resistance(df)
-            price_ax = axes[0]            n = len(df)
+            price_ax = axes[0]
+            n = len(df)
 
             # Draw resistance as step line (red) - horizontal segments at each level
             res_series = sr['resistance']
