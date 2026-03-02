@@ -38,26 +38,87 @@ TV_BORDER = '#2a2e39'
 TV_VOL_UP = '#26a69a'
 TV_VOL_DOWN = '#ef5350'
 
-def make_chart(df, symbol, timeframe):
+# Futures symbol mappings
+FUTURES_ALIASES = {
+    'ES': 'ES=F', 'NQ': 'NQ=F', 'YM': 'YM=F', 'RTY': 'RTY=F',
+    'CL': 'CL=F', 'GC': 'GC=F', 'SI': 'SI=F', 'HG': 'HG=F',
+    'NG': 'NG=F', 'ZB': 'ZB=F', 'ZN': 'ZN=F', 'ZF': 'ZF=F',
+    'ZC': 'ZC=F', 'ZS': 'ZS=F', 'ZW': 'ZW=F', 'KC': 'KC=F',
+    'CT': 'CT=F', 'SB': 'SB=F', 'CC': 'CC=F', 'DX': 'DX=F',
+    'BTC': 'BTC=F', '6E': '6E=F', '6J': '6J=F', '6B': '6B=F',
+    'VX': 'VX=F',
+}
+
+FUTURES_DISPLAY_NAMES = {
+    'ES=F': 'S&P 500 E-mini', 'NQ=F': 'Nasdaq 100 E-mini', 'YM=F': 'Dow Jones E-mini',
+    'RTY=F': 'Russell 2000 E-mini', 'CL=F': 'Crude Oil', 'GC=F': 'Gold',
+    'SI=F': 'Silver', 'HG=F': 'Copper', 'NG=F': 'Natural Gas',
+    'ZB=F': '30-Year Treasury Bond', 'ZN=F': '10-Year Treasury Note',
+    'ZF=F': '5-Year Treasury Note', 'ZC=F': 'Corn', 'ZS=F': 'Soybeans',
+    'ZW=F': 'Wheat', 'KC=F': 'Coffee', 'CT=F': 'Cotton', 'SB=F': 'Sugar',
+    'CC=F': 'Cocoa', 'DX=F': 'US Dollar Index', 'BTC=F': 'Bitcoin Futures',
+    '6E=F': 'Euro FX', '6J=F': 'Japanese Yen', '6B=F': 'British Pound',
+    'VX=F': 'VIX Futures',
+}
+
+
+def resolve_crypto_symbol(symbol):
+    """Convert a crypto symbol like BTC to BTC-USD for yfinance."""
+    symbol = symbol.upper().strip()
+    if symbol.endswith('-USD'):
+        return symbol
+    return f'{symbol}-USD'
+
+
+def get_bars_alpaca(symbol, timeframe, start_date, end_date):
+    """Get stock bars from Alpaca API."""
     try:
-                        df['SMA20'] = df['close'].rolling(window=20).mean()
-                        df['SMA50'] = df['close'].rolling(window=50).mean()
-                        df['SMA200'] = df['close'].rolling(window=200).mean()
-                        df['VWAP'] = calculate_vwap(df)
-                        mc = mpf.make_marketcolors(up='#00ff00', down='#ff00ff', edge='inherit', wick='inherit', volume={'up': '#00ff00', 'down': '#ff00ff'})
-                        s = mpf.make_mpf_style(marketcolors=mc, base_mpl_style='dark_background', facecolor='#0d1117', figcolor='#0d1117', gridstyle='-', gridcolor='#30363d', y_on_right=True)
-                        plots = [
-                            mpf.make_addplot(df['SMA20'], color='#00bfff', width=1),
-                            mpf.make_addplot(df['SMA50'], color='#ff1493', width=1),
-                            mpf.make_addplot(df['SMA200'], color='#ffa500', width=1.5),
-                            mpf.make_addplot(df['VWAP'], color='#ffff00', width=1, linestyle='--')
-                        ]
-                        buf = io.BytesIO()
-                        mpf.plot(df, type='candle', style=s, volume=True, addplot=plots, savefig=dict(fname=buf, dpi=150, bbox_inches='tight'), title=f'{symbol} - {timeframe}')
-                        buf.seek(0)
-                        return buf
-    except:
+        request = StockBarsRequest(
+            symbol_or_symbols=symbol.upper(),
+            timeframe=timeframe,
+            start=start_date,
+            end=end_date
+        )
+        bars = stock_client.get_stock_bars(request)
+        df = bars.df
+        if df is None or len(df) == 0:
+            return None
+        if isinstance(df.index, pd.MultiIndex):
+            df = df.droplevel(0)
+        df.columns = [c.lower() for c in df.columns]
+        df.index.name = 'timestamp'
+        if df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+        return df
+    except Exception as e:
+        print(f"Alpaca error for {symbol}: {e}")
         return None
+
+
+def get_futures_bars(symbol, interval, period=None, start_date=None, end_date=None):
+    """Get futures data from yfinance."""
+    symbol = symbol.upper().strip()
+    ticker_symbol = FUTURES_ALIASES.get(symbol, symbol if '=F' in symbol else f'{symbol}=F')
+    try:
+        ticker = yf.Ticker(ticker_symbol)
+        if period:
+            df = ticker.history(period=period, interval=interval)
+        else:
+            df = ticker.history(start=start_date, end=end_date, interval=interval)
+        if df is None or len(df) == 0:
+            return None, ticker_symbol
+        df.columns = [c.lower() for c in df.columns]
+        if 'stock splits' in df.columns:
+            df = df.rename(columns={'stock splits': 'stock_splits'})
+        cols = ['open', 'high', 'low', 'close', 'volume']
+        df = df[[c for c in cols if c in df.columns]]
+        df.index.name = 'timestamp'
+        if df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+        return df, ticker_symbol
+    except Exception as e:
+        print(f"Futures error for {ticker_symbol}: {e}")
+        return None, ticker_symbol
 
 def get_bars_yfinance(symbol, interval, period=None, start_date=None, end_date=None):
     """Fallback to yfinance for OTC and unsupported tickers."""
