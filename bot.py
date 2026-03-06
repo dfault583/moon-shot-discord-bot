@@ -1262,55 +1262,56 @@ async def ten_bagger(ctx):
     embed.add_field(
         name='\U0001f4c8 Trade Setup',
         value=(
-            '**Ticker:** JBLU (JetBlue Airways)\n'
-            '**Contract:** $7 Call\n'
-            '**Expiration:** Jun 18, 2026\n'
-            '**Entry Price:** ~$0.76\n'            '**Type:** OTM Call (~10.8% out of the money)\n'
-            '**Cost:** ~$76 per contract'
+            '**Ticker:** RCAT (Red Cat Holdings)\n'
+            '**Contract:** $22 Call\n'
+            '**Expiration:** May 16, 2026\n'
+            '**Entry Price:** ~$1.30\n'
+            '**Type:** OTM Call (~17% out of the money)\n'
+            '**Cost:** ~$130 per contract'
         ),
         inline=False
     )
     embed.add_field(
         name='\U0001f3af Why This Trade',
         value=(
-            '\u2022 UW Flow: 20,000+ contracts bought across multiple 5K blocks \u2014 all on the ask side\n'
-            '\u2022 Call volume 49,548 vs put volume 1,165 \u2014 P/C ratio of 0.02 (insanely bullish)\n'
-            '\u2022 $2.7M in call premium today alone \u2014 massive institutional positioning\n'
-            '\u2022 Stock up 4%+ today on heavy volume \u2014 accumulation pattern\n'
-            '\u2022 120 DTE gives time through summer travel season \u2014 peak revenue catalyst\n'
-            '\u2022 Airline sector turnaround \u2014 travel demand at record highs, costs stabilizing'
+            '\u2022 UW Flow: 28,662 call options traded \u2014 31% above normal volume\n'
+            '\u2022 70% bullish sentiment on options flow \u2014 smart money loading calls\n'
+            '\u2022 Pentagon Drone Dominance Program contract winner\n'
+            '\u2022 Black Widow drone orders from Asia-Pacific allied nations\n'
+            '\u2022 Army SRR LRIP order expected \u2014 major revenue catalyst\n'
+            '\u2022 Ladenburg Thalmann raised PT to $20 \u2014 Strong Buy consensus'
         ),
         inline=False
     )
     embed.add_field(
         name='\U0001f4b0 10-Bagger Math',
         value=(
-            '\u2022 Entry: ~$0.76/contract ($76 per contract)\n'
-            '\u2022 Breakeven: JBLU hits $7.76 (+22.8%) by Jun 18\n'
-            '\u2022 **10x Target:** JBLU hits ~$14.60 \u2192 call worth ~$7.60 (10x) \U0001f680\n'
-            '\u2022 **If JBLU hits $12 (52W high area):** call worth ~$5.00 (6.6x) \U0001f680\n'
-            '\u2022 **If JBLU hits $15+ (analyst targets):** call worth ~$8.00 (10.5x) \U0001f680\U0001f680\n'
-            '\u2022 Summer travel + earnings 5/5 could send airlines parabolic'
+            '\u2022 Entry: ~$1.30/contract ($130 per contract)\n'
+            '\u2022 Breakeven: RCAT hits $23.30 (+24%) by May 16\n'
+            '\u2022 **10x Target:** RCAT hits ~$35 \u2192 call worth ~$13.00 (10x) \U0001f680\n'
+            '\u2022 **If RCAT hits $28 (defense hype):** call worth ~$6.00 (4.6x) \U0001f680\n'
+            '\u2022 **If RCAT hits $30+ (contract news):** call worth ~$8.00 (6.2x) \U0001f680\U0001f680\n'
+            '\u2022 Defense/drone sector is red hot \u2014 catalysts stacking up through May'
         ),
         inline=False
     )
     embed.add_field(
         name='\U0001f525 News & Trend Context',
         value=(
-            '\u2022 52W range $3.34-$7.83 \u2014 stock near lows with room to run\n'
-            '\u2022 Summer 2026 bookings trending strong \u2014 airlines seeing record passenger loads\n'
-            '\u2022 Fuel costs declining \u2014 major margin tailwind for airlines\n'
-            '\u2022 JBLU restructuring plan in motion \u2014 cutting unprofitable routes, focusing on premium\n'
-            '\u2022 Multiple whale-size blocks all in same strike/expiry \u2014 coordinated smart money bet'
+            '\u2022 52W range $1.24-$25.00 \u2014 massive momentum off lows\n'
+            '\u2022 Pentagon drone budget expanding rapidly \u2014 bipartisan support\n'
+            '\u2022 Black Widow selected for allied military contracts\n'
+            '\u2022 Army Short Range Reconnaissance program \u2014 LRIP phase imminent\n'
+            '\u2022 Multiple large call blocks at same strike/expiry \u2014 coordinated institutional bet'
         ),
         inline=False
     )
     embed.add_field(
         name='\u26a0\ufe0f Risk Level',
-        value='**EXTREME** \u2014 OTM options expire worthless most of the time. JBLU is a turnaround story that could fail. Airlines are cyclical and exposed to fuel costs, macro conditions, and competition. Only play with money you can afford to lose entirely.',
+        value='**EXTREME** \u2014 OTM calls on volatile small-cap defense stock. RCAT is speculative and driven by gov contracts that can be delayed or cancelled. Only play with money you can lose. This is a YOLO play.',
         inline=False
     )
-    embed.set_footer(text='Updated: Feb 18, 2026 \u2022 Source: UW Flow + Market Trends \u2022 Not financial advice \u2022 DYOR')
+    embed.set_footer(text='Updated: Mar 6, 2026 \u2022 Source: UW Flow + Market Trends \u2022 Not financial advice \u2022 DYOR')
     await ctx.send(embed=embed)
 
 # ============================================================
@@ -1452,3 +1453,4 @@ async def joinis(ctx):
     await ctx.send(embed=embed)
 
 bot.run(os.getenv('DISCORD_TOKEN'))
+h
