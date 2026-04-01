@@ -573,10 +573,10 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
             }
         )
 
-        last_close = df['close'].iloc[-1]
+        last_close = df['close'].dropna().iloc[-1] if df['close'].dropna().any() else df['close'].iloc[-1]
         # For intraday charts, compare to day's open; for daily+ compare to previous close
         if timeframe in ('1m', '5m', '15m', '30m', '1H'):
-            ref_price = df['open'].iloc[0]
+            ref_price = df['open'].dropna().iloc[0] if df['open'].dropna().any() else last_close
         else:
             ref_price = df['close'].iloc[-2] if len(df) > 1 else last_close
         change = last_close - ref_price
@@ -964,6 +964,20 @@ async def _chart_minute(ctx, symbol, minutes):
             df.index = df.index.tz_localize(None)
 
         if len(df) < 2:
+            await ctx.send(f"Not enough data for {symbol} today yet.")
+            return
+
+        # Pad index to full regular trading day (9:30 AM - 4:00 PM ET) so chart
+        # always displays the same width regardless of current time of day.
+        trade_date = df.index[-1].normalize()  # midnight of the trading day
+        market_open = trade_date + pd.Timedelta(hours=9, minutes=30)
+        market_close = trade_date + pd.Timedelta(hours=16)
+        full_day_idx = pd.date_range(start=market_open, end=market_close, freq=f'{minutes}min')
+        # Keep only the data that falls within regular hours, then reindex
+        df = df[(df.index >= market_open) & (df.index <= market_close)]
+        df = df.reindex(full_day_idx)
+
+        if df.dropna(subset=['close']).empty or len(df.dropna(subset=['close'])) < 2:
             await ctx.send(f"Not enough data for {symbol} today yet.")
             return
         buf = make_chart(df, symbol, f'{minutes}m', source=source)
