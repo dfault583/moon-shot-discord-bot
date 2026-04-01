@@ -599,6 +599,16 @@ def make_chart(df, symbol, timeframe, display_count=None, source=None):
 
         fig.suptitle(title, color='#ffffff', fontsize=14, fontweight='bold', x=0.08, ha='left')
 
+        # For intraday charts, extend x-axis to full trading day (9:30-4:00 = 390 min)
+        # so the chart always has the same width regardless of time of day.
+        if timeframe in ('1m', '5m', '15m', '30m'):
+            minutes_map = {'1m': 1, '5m': 5, '15m': 15, '30m': 30}
+            total_bars = 390 // minutes_map[timeframe]
+            current_bars = len(df)
+            if current_bars < total_bars:
+                for ax in axes:
+                    ax.set_xlim(-0.5, total_bars - 0.5)
+
         # === TradingView-style Watermark ===
         price_ax = axes[0]
         # Large ticker + timeframe text
@@ -964,20 +974,6 @@ async def _chart_minute(ctx, symbol, minutes):
             df.index = df.index.tz_localize(None)
 
         if len(df) < 2:
-            await ctx.send(f"Not enough data for {symbol} today yet.")
-            return
-
-        # Pad index to full regular trading day (9:30 AM - 4:00 PM ET) so chart
-        # always displays the same width regardless of current time of day.
-        trade_date = df.index[-1].normalize()  # midnight of the trading day
-        market_open = trade_date + pd.Timedelta(hours=9, minutes=30)
-        market_close = trade_date + pd.Timedelta(hours=16)
-        full_day_idx = pd.date_range(start=market_open, end=market_close, freq=f'{minutes}min')
-        # Keep only the data that falls within regular hours, then reindex
-        df = df[(df.index >= market_open) & (df.index <= market_close)]
-        df = df.reindex(full_day_idx)
-
-        if df.dropna(subset=['close']).empty or len(df.dropna(subset=['close'])) < 2:
             await ctx.send(f"Not enough data for {symbol} today yet.")
             return
         buf = make_chart(df, symbol, f'{minutes}m', source=source)
