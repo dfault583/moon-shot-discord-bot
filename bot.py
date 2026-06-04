@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockBarsRequest
+from alpaca.data.requests import StockBarsRequest, StockSnapshotRequest
 from alpaca.data.timeframe import TimeFrame
 import mplfinance as mpf
 import matplotlib.pyplot as plt
@@ -163,11 +163,119 @@ def get_crypto_bars(symbol, yf_interval, period=None, start_date=None, end_date=
     return None
 
 
+def _market_status_now():
+    """Return (market_status, now_et) for US equities based on Eastern time."""
+    et = pytz.timezone('US/Eastern')
+    now_et = datetime.now(et)
+    hour, minute, weekday = now_et.hour, now_et.minute, now_et.weekday()
+    if weekday >= 5:
+        status = 'Market Closed (Weekend)'
+    elif hour < 4:
+        status = 'Market Closed'
+    elif hour < 9 or (hour == 9 and minute < 30):
+        status = 'Pre-Market'
+    elif hour < 16:
+        status = 'Market Open'
+    elif hour < 20:
+        status = 'After Hours'
+    else:
+        status = 'Market Closed'
+    return status, now_et
+
+
+def _build_price_embed_alpaca(symbol):
+    """Build a price embed for a stock using Alpaca's snapshot (primary source)."""
+    try:
+        request = StockSnapshotRequest(symbol_or_symbols=symbol.upper())
+        snapshots = stock_client.get_stock_snapshot(request)
+    except Exception as e:
+        print(f"Alpaca snapshot error for {symbol}: {e}")
+        return None
+
+    snap = snapshots.get(symbol.upper()) if snapshots else None
+    if snap is None:
+        return None
+
+    daily = snap.daily_bar
+    prev_daily = snap.previous_daily_bar
+    latest_trade = snap.latest_trade
+    if daily is None:
+        return None
+
+    market_status, now_et = _market_status_now()
+
+    # Current/live price: latest trade includes extended-hours prints; fall back
+    # to the daily close if no trade is available.
+    last_price = None
+    if latest_trade is not None and latest_trade.price:
+        last_price = latest_trade.price
+    if not last_price:
+        last_price = daily.close
+    if not last_price:
+        return None
+
+    # Reference close that the change is measured against:
+    #  - intraday (market open): yesterday's regular close (previous_daily_bar)
+    #  - pre-market: the daily bar is still the last completed session's close
+    #  - after hours / closed: today's regular close (daily_bar)
+    daily_is_today = daily.timestamp.astimezone(now_et.tzinfo).date() == now_et.date()
+    if market_status in ('Market Open', 'Pre-Market') and daily_is_today and prev_daily is not None:
+        ref_close = prev_daily.close
+    else:
+        ref_close = daily.close
+
+    change = 0
+    pct_change = 0
+    if ref_close and ref_close > 0:
+        change = last_price - ref_close
+        pct_change = (change / ref_close) * 100
+
+    sign = '+' if change >= 0 else ''
+    color = 0x26a69a if change >= 0 else 0xef5350
+
+    embed = discord.Embed(title=symbol.upper(), color=color)
+    embed.add_field(
+        name='Price',
+        value=f'**${last_price:,.2f}** {sign}{change:,.2f} ({sign}{pct_change:.2f}%)',
+        inline=False
+    )
+
+    details = []
+    if ref_close:
+        details.append(f'Prev Close: ${ref_close:,.2f}')
+    if daily.open:
+        details.append(f'Open: ${daily.open:,.2f}')
+    if daily.high and daily.low:
+        details.append(f'Range: ${daily.low:,.2f} - ${daily.high:,.2f}')
+    if daily.volume:
+        vol = daily.volume
+        if vol >= 1_000_000:
+            vol_str = f'{vol / 1_000_000:.2f}M'
+        elif vol >= 1_000:
+            vol_str = f'{vol / 1_000:.1f}K'
+        else:
+            vol_str = f'{vol:,}'
+        details.append(f'Volume: {vol_str}')
+    if details:
+        embed.add_field(name='Details', value='\n'.join(details), inline=False)
+
+    embed.set_footer(text=f'Stock • {market_status}')
+    return embed
+
+
 def get_price_info(symbol):
     """Get current price info for a stock or crypto, including pre/post market."""
     symbol = symbol.upper().strip()
 
-    # Try as stock first
+    # Try Alpaca first (primary data source; yfinance is the backup)
+    try:
+        result = _build_price_embed_alpaca(symbol)
+        if result:
+            return result
+    except Exception as e:
+        print(f"Alpaca price lookup failed for {symbol}: {e}")
+
+    # Fall back to yfinance as a stock
     try:
         ticker = yf.Ticker(symbol)
         info = ticker.fast_info
