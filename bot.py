@@ -259,10 +259,13 @@ def _build_price_embed(ticker, symbol, is_crypto=False):
                 ext_info = ticker.info
                 if market_status == 'Pre-Market':
                     pre_price = ext_info.get('preMarketPrice')
-                    if pre_price and pre_price > 0 and prev_close and prev_close > 0:
+                    # Pre-market change is measured against the most recent
+                    # regular-session close, which is last_price during pre-market
+                    # (previous_close is the session before that).
+                    if pre_price and pre_price > 0 and last_price and last_price > 0:
                         extended_price = pre_price
-                        extended_change = pre_price - prev_close
-                        extended_pct = (extended_change / prev_close) * 100
+                        extended_change = pre_price - last_price
+                        extended_pct = (extended_change / last_price) * 100
                 elif market_status == 'After Hours':
                     post_price = ext_info.get('postMarketPrice')
                     if post_price and post_price > 0:
